@@ -158,7 +158,7 @@ These are sequencing checkpoints, not permission gates. The user's authorization
 | M4 | Angel and three interacting disciple rules | Implemented and checked locally |
 | M5 | Integrated sound, language, accessibility, tested core build | Implemented and checked locally |
 | M6 | All twelve disciples and biblical transformation coverage | Implemented and checked locally |
-| M7 | Full regression, browser review, public deployment verification | Local verification passed; publication pending |
+| M7 | Full regression, browser review, public deployment verification | Published v4; live page verified |
 
 The first integrated checkpoint is a playable, persistent cathedral with impossible stairs, alternate cat access, a perception-altering angel, three interacting disciples, and evolving sound. It is not the end of the authorized scope. Expand to all twelve and biblical coverage, then complete verification and publication.
 
@@ -206,3 +206,15 @@ The first integrated checkpoint is a playable, persistent cathedral with impossi
 - The initial review checkpoint did not stop work: the remaining nine companions and biblical families were implemented in the same authorized run.
 
 Publication status will be recorded in docs/RELEASE.md after the hosting service confirms deployment.
+
+### 2026-11-02 — Publication confirmed
+
+Version 4 deployed successfully from commit `8af1f04f5b5042817580c0c607424f4f85633e9b`. The public page was reloaded and verified to show the new cathedral title and opening. All planned implementation phases have a working realization; limitations and verification boundaries remain explicit above and in docs/RELEASE.md. This post-publication ledger update changes documentation only.
+
+### 2026-11-02 — Engravings and unlocated narrator
+
+- Added two verified public-domain Dürer images from The Met and National Gallery of Art, bundled locally with source credits. They supply visible wall textures and linear bump maps on tablets, floor, a column, and stonework. Relief responds to attention and memory; the third reality exchanges the wall record.
+- Added a subtitle-only scripture narrator with verified World English Bible quotations and accurate references. Room entry and events choose context-specific passages; queued lines are paced, deduplicated, and cleared on room changes. Narration can be disabled independently.
+- Added cinematic arrival cards with intentionally displaced location references, impossible chronology, loop-dependent take numbers, letterboxing, and cast cards for the cat and angel. No movement is locked. Reduced motion removes transitions.
+- Validation: strict TypeScript build and 16 tests passed; desktop room/narrator and 390x844 arrival-card layouts inspected; independent narration toggle verified; no browser console errors observed. See docs/ART_AND_NARRATION.md for provenance and implementation detail.
+- Publication: pending at the time this source revision was packaged.

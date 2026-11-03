@@ -1,12 +1,13 @@
+import {Relics} from './relics.js';
 import * as T from '../three.module.js';
 import {present,type World} from './world.js';
 export class Cathedral {
- scene:any; camera:any; renderer:any; root:any; cat:any; angel:any; eyes:any; wings:any; water:any; bridge:any; screen:any; roots:any; ceiling:any; throne:any; low:any; companions:any[]=[];letter:any;light:any; rose:any;dust:any; clock=0;lastPlace='';materials:any[]=[];
+ relics:Relics; scene:any; camera:any; renderer:any; root:any; cat:any; angel:any; eyes:any; wings:any; water:any; bridge:any; screen:any; roots:any; ceiling:any; throne:any; low:any; companions:any[]=[];letter:any;light:any; rose:any;dust:any; clock=0;lastPlace='';materials:any[]=[];
  constructor(canvas:HTMLCanvasElement){
   this.renderer=new T.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));this.renderer.setSize(innerWidth,innerHeight);this.renderer.outputColorSpace=T.SRGBColorSpace;this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.15;
   this.scene=new T.Scene();this.scene.background=new T.Color('#171c22');this.scene.fog=new T.FogExp2('#171c22',.019);this.camera=new T.PerspectiveCamera(68,innerWidth/innerHeight,.08,160);this.camera.rotation.order='YXZ';
   this.scene.add(new T.HemisphereLight(0xc8dfeb,0x171519,2.1));this.light=new T.DirectionalLight(0xffd8a0,3);this.light.position.set(-8,18,5);this.scene.add(this.light);const fill=new T.PointLight(0xa8d5df,35,30);fill.position.set(0,6,-8);this.scene.add(fill);
-  this.root=new T.Group();this.scene.add(this.root);this.build();addEventListener('resize',()=>{this.renderer.setSize(innerWidth,innerHeight);this.camera.aspect=innerWidth/innerHeight;this.camera.updateProjectionMatrix();});
+  this.root=new T.Group();this.scene.add(this.root);this.build();this.relics=new Relics(this.root);for(const material of this.materials){material.bumpMap=this.relics.eden.bumpMap;material.bumpScale=.025;material.needsUpdate=true;}addEventListener('resize',()=>{this.renderer.setSize(innerWidth,innerHeight);this.camera.aspect=innerWidth/innerHeight;this.camera.updateProjectionMatrix();});
  }
  mat(color:string,metalness=0,emissive?:string){return new T.MeshStandardMaterial({color,roughness:.77,metalness,emissive:emissive||'#000000',emissiveIntensity:.5});}
  mesh(geo:any,mat:any,x=0,y=0,z=0,parent=this.root){const m=new T.Mesh(geo,mat);m.position.set(x,y,z);parent.add(m);return m;}
@@ -14,7 +15,7 @@ export class Cathedral {
  ring(radius:number,tube:number,mat:any,x:number,y:number,z:number,parent=this.root){return this.mesh(new T.TorusGeometry(radius,tube,10,64),mat,x,y,z,parent);}
  build(){
   const stone=this.mat('#8a8981'),dark=this.mat('#525954'),gold=this.mat('#9c8052',.65),white=this.mat('#d8d4c2'),black=this.mat('#141f20'),green=this.mat('#374a3b'),glow=this.mat('#d4dbbf',.2,'#b9d7b5');
-  const textureCanvas=document.createElement('canvas');textureCanvas.width=textureCanvas.height=256;const ctx=textureCanvas.getContext('2d')!;ctx.fillStyle='#b9b7ad';ctx.fillRect(0,0,256,256);let seed=42;for(let i=0;i<14000;i++){seed=(Math.imul(seed,1664525)+1013904223)>>>0;const x=seed%256;seed=(Math.imul(seed,1664525)+1013904223)>>>0;const y=seed%256;ctx.fillStyle=i%3?'#aaa99f33':'#f2e8ce22';ctx.fillRect(x,y,2,1);}ctx.strokeStyle='#75766e55';ctx.lineWidth=2;for(let y=0;y<256;y+=64){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(256,y);ctx.stroke();}stone.map=new T.CanvasTexture(textureCanvas);stone.map.wrapS=stone.map.wrapT=T.RepeatWrapping;stone.map.repeat.set(2,4);
+  this.materials.push(stone);const textureCanvas=document.createElement('canvas');textureCanvas.width=textureCanvas.height=256;const ctx=textureCanvas.getContext('2d')!;ctx.fillStyle='#b9b7ad';ctx.fillRect(0,0,256,256);let seed=42;for(let i=0;i<14000;i++){seed=(Math.imul(seed,1664525)+1013904223)>>>0;const x=seed%256;seed=(Math.imul(seed,1664525)+1013904223)>>>0;const y=seed%256;ctx.fillStyle=i%3?'#aaa99f33':'#f2e8ce22';ctx.fillRect(x,y,2,1);}ctx.strokeStyle='#75766e55';ctx.lineWidth=2;for(let y=0;y<256;y+=64){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(256,y);ctx.stroke();}stone.map=new T.CanvasTexture(textureCanvas);stone.map.wrapS=stone.map.wrapT=T.RepeatWrapping;stone.map.repeat.set(2,4);
   this.box(0,-.25,0,28,.5,36,stone);for(let x=-12;x<=12;x+=2)for(let z=-16;z<=16;z+=2)this.box(x,.006,z,1.94,.015,1.94,(x+z)%4===0?stone:dark);
   // Broken side walls retain large, visible passages at the transept.
   for(const x of [-13,13])for(const z of [-10,10])this.box(x,6,z,.7,12,12,stone);
@@ -53,7 +54,7 @@ export class Cathedral {
   for(const [name,p,max] of targets){if(name==='angel'&&w.place!=='garden')continue;if(name==='stone'&&w.place!=='nave'&&w.place!=='crypt')continue;if(name==='cat'&&!this.cat.visible)continue;const delta=p.clone().sub(this.camera.position);if(delta.length()<max&&dir.dot(delta.normalize())>.87)return name as any;}return 'none';
  }
  draw(w:World,dt:number,reduced:boolean){
-  this.clock+=dt;const t=this.clock;const stair=w.place==='stair';this.root.getObjectByName('stair').visible=stair;this.root.getObjectByName('frontDoor').position.y=stair?8.1:0;this.rose.position.y=stair?16:11;this.root.getObjectByName('bushes').visible=w.place==='garden';
+  this.relics.update(w);this.clock+=dt;const t=this.clock;const stair=w.place==='stair';this.root.getObjectByName('stair').visible=stair;this.root.getObjectByName('frontDoor').position.y=stair?8.1:0;this.rose.position.y=stair?16:11;this.root.getObjectByName('bushes').visible=w.place==='garden';
   const height=stair?Math.max(0,(8-w.z)*.328):0;const lowHeight=w.passage&&w.x>8&&w.z<-8&&!present(w,'alphaeus')?.85:1.7;this.camera.position.set(w.x,lowHeight+height,w.z);this.camera.rotation.set(w.pitch,w.yaw,0);
   this.water.visible=w.place==='water'||w.memory>2;this.water.position.y=w.place==='water'?(present(w,'matthew')&&w.bridge?12:.08):13+Math.sin(t*.1)*.2;
   this.rose.rotation.z=(reduced?0:t*.008)*(1+w.memory*.1);this.rose.scale.setScalar(w.ceiling?1.3:1);this.dust.rotation.y=reduced?0:Math.sin(t*.03)*.15;this.dust.material.opacity=.2+w.attention*.025;

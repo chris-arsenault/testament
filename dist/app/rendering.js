@@ -1,6 +1,8 @@
+import { Relics } from './relics.js';
 import * as T from '../three.module.js';
 import { present } from './world.js';
 export class Cathedral {
+    relics;
     scene;
     camera;
     renderer;
@@ -46,6 +48,12 @@ export class Cathedral {
         this.root = new T.Group();
         this.scene.add(this.root);
         this.build();
+        this.relics = new Relics(this.root);
+        for (const material of this.materials) {
+            material.bumpMap = this.relics.eden.bumpMap;
+            material.bumpScale = .025;
+            material.needsUpdate = true;
+        }
         addEventListener('resize', () => { this.renderer.setSize(innerWidth, innerHeight); this.camera.aspect = innerWidth / innerHeight; this.camera.updateProjectionMatrix(); });
     }
     mat(color, metalness = 0, emissive) { return new T.MeshStandardMaterial({ color, roughness: .77, metalness, emissive: emissive || '#000000', emissiveIntensity: .5 }); }
@@ -54,6 +62,7 @@ export class Cathedral {
     ring(radius, tube, mat, x, y, z, parent = this.root) { return this.mesh(new T.TorusGeometry(radius, tube, 10, 64), mat, x, y, z, parent); }
     build() {
         const stone = this.mat('#8a8981'), dark = this.mat('#525954'), gold = this.mat('#9c8052', .65), white = this.mat('#d8d4c2'), black = this.mat('#141f20'), green = this.mat('#374a3b'), glow = this.mat('#d4dbbf', .2, '#b9d7b5');
+        this.materials.push(stone);
         const textureCanvas = document.createElement('canvas');
         textureCanvas.width = textureCanvas.height = 256;
         const ctx = textureCanvas.getContext('2d');
@@ -274,6 +283,7 @@ export class Cathedral {
         return 'none';
     }
     draw(w, dt, reduced) {
+        this.relics.update(w);
         this.clock += dt;
         const t = this.clock;
         const stair = w.place === 'stair';

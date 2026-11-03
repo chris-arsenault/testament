@@ -1,3 +1,4 @@
+import { Narrator, roomRecords } from './narrative.js';
 import { Cathedral } from './rendering.js';
 import { Sound } from './audio.js';
 import { initial, restore, tick, walk, select, separate } from './world.js';
@@ -19,14 +20,16 @@ catch (e) {
     $('veil').innerHTML = '<h1>TESTAMENT</h1><p>This cathedral needs WebGL. Enable hardware acceleration and reopen this page.</p>';
     throw e;
 }
+const narrator = new Narrator();
+let roomTime = 0, castTime = 0;
 const audio = new Sound(), keys = new Set();
 let active = false, started = false, last = performance.now(), saveTime = 0, captionTime = 0, drag = false, focusToggle = false, eventCount = 0, autoWalk = false, lastSpace = w.place, lastTurns = w.turns;
-let settings = { music: 45, effects: 65, reduced: matchMedia('(prefers-reduced-motion: reduce)').matches, easy: false, subtitles: true };
+let settings = { music: 45, effects: 65, reduced: matchMedia('(prefers-reduced-motion: reduce)').matches, easy: false, subtitles: true, narration: true };
 try {
     settings = { ...settings, ...JSON.parse(localStorage.getItem('testament-settings') || '{}') };
 }
 catch { }
-for (const id of ['music', 'effects', 'reduced', 'easy', 'subtitles']) {
+for (const id of ['music', 'effects', 'reduced', 'easy', 'subtitles', 'narration']) {
     const el = $(id);
     if (el.type === 'checkbox')
         el.checked = !!settings[id];
@@ -38,6 +41,8 @@ for (const id of ['music', 'effects', 'reduced', 'easy', 'subtitles']) {
     catch { } };
 }
 document.body.classList.toggle('quiet', settings.reduced);
+function enterRoom() { const r = roomRecords[w.place]; $('roomTitle').textContent = r.title; $('roomDetail').textContent = r.detail; $('roomRecord').textContent = 'LOCATION RECORD / ' + r.record; $('roomKicker').textContent = w.place === 'stair' ? 'TAKE ' + String(w.turns + 1).padStart(2, '0') + ' / THE FIRST ASCENT' : 'FIELD RECORD / ' + String(w.returns + 1).padStart(2, '0') + ' / ARRIVAL NOT CONFIRMED'; roomTime = 5.2; castTime = 0; narrator.enter(w); }
+function cast(role, name, detail) { $('castRole').textContent = role; $('castName').textContent = name; $('castDetail').textContent = detail; castTime = 7; }
 function save() { try {
     localStorage.setItem('testament-cathedral-v2', JSON.stringify({ ...w, events: [] }));
 }
@@ -61,7 +66,7 @@ function roster() { const r = $('roster'); r.replaceChildren(); for (const witne
 function pause() { if (menu.open)
     return; active = false; autoWalk = false; keys.clear(); drag = false; audio.pause(true); roster(); menu.showModal(); menu.tabIndex = -1; menu.focus(); menu.scrollTop = 0; save(); }
 function resume() { menu.close(); active = started; audio.pause(false); keys.clear(); last = performance.now(); }
-$('enter').onclick = () => { started = true; active = true; $('veil').classList.add('hidden'); audio.start(); audio.music.setVolume(settings.music / 100); audio.effects.setVolume(settings.effects / 100); captionTime = 8; $('caption').textContent = 'The cat was here before the beginning.'; };
+$('enter').onclick = () => { started = true; active = true; $('veil').classList.add('hidden'); audio.start(); audio.music.setVolume(settings.music / 100); audio.effects.setVolume(settings.effects / 100); enterRoom(); captionTime = 0; $('caption').textContent = ''; };
 $('menuButton').onclick = pause;
 $('resume').onclick = resume;
 menu.addEventListener('cancel', e => { e.preventDefault(); resume(); });
@@ -117,6 +122,11 @@ function frame(now) {
         if (w.events.length) {
             const e = w.events.shift();
             audio.event(e);
+            narrator.event(e);
+            if (e.kind === 'cat')
+                cast('STARRING', 'EVE', 'AS HERSELF / BEFORE HERSELF');
+            if (e.kind === 'angel')
+                cast('SPECIAL APPEARANCE', 'THE MANY-EYED', 'NO RECORD OF ARRIVAL');
             $('caption').textContent = e.text;
             captionTime = 8;
             eventCount++;
@@ -132,6 +142,24 @@ function frame(now) {
             $('caption').textContent = `To ${witnesses[w.letter].name}: I have kept your place at the table.`;
             captionTime = 6;
         }
+        roomTime = Math.max(0, roomTime - dt);
+        castTime = Math.max(0, castTime - dt);
+        const verse = narrator.update(dt, settings.narration);
+        $('narrator').classList.toggle('speaking', !!verse);
+        $('narrator').setAttribute('aria-hidden', String(!verse));
+        if (verse) {
+            $('verseText').textContent = '“' + verse.text + '”';
+            $('verseReference').textContent = verse.reference;
+        }
+        else {
+            $('verseText').textContent = '';
+            $('verseReference').textContent = '';
+        }
+        document.body.classList.toggle('cinematic', roomTime > 0);
+        $('roomCard').classList.toggle('visible', roomTime > 0);
+        $('roomCard').setAttribute('aria-hidden', String(roomTime <= 0));
+        $('castCard').classList.toggle('visible', castTime > 0 && roomTime === 0);
+        $('castCard').setAttribute('aria-hidden', String(!(castTime > 0 && roomTime === 0)));
         saveTime += dt;
         if (saveTime > 4) {
             save();
@@ -143,6 +171,8 @@ function frame(now) {
         setTimeout(() => $('blink').classList.remove('closed'), 60);
         lastSpace = w.place;
         lastTurns = w.turns;
+        if (started)
+            enterRoom();
     }
     $('location').textContent = names[w.place];
     renderer.draw(w, active ? dt : 0, settings.reduced);
