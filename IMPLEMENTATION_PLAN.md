@@ -225,3 +225,11 @@ Version 4 deployed successfully from commit `8af1f04f5b5042817580c0c607424f4f856
 - The Codex in-app browser rejected Pointer Lock with WrongDocumentError during verification. In this host, an automatic click-to-look fallback accepts mouse motion without holding a button, bounded by the view. True unrestricted capture requires a host supporting Pointer Lock; it was not verified in an external browser.
 - Removed all configurable toggles and separate audio sliders. One persisted Volume slider scales music and effects together, with zero muting both. Narration and sound captions remain enabled; system reduced-motion preference is automatic. Party and recovery actions remain available.
 - Fixed Escape default behavior closing the dialog on the same keypress that opened it. Browser verified no-hold look, Escape pause, and a single settings slider. Strict build and 19 tests passed (including volume mute, pitch clamp, and denied/unsupported pointer lock).
+
+### 2026-11-02 — Five esoteric table puzzles
+
+- Added one optional minigame to every room: rotating halos, sliding stones, Eden mosaic, glyph sudoku, and cross-toggle lamps. Each is reachable through a physical table and the E/examine control.
+- Completion produces a distorted scripture/political transmission with a detuned canticle. It has no effect on doors, abilities, or progression, and that lack of utility is not announced in play.
+- Attempt time has no limit. It gradually increases rustling disciple whispers and falling text, bounded at one whisper every three seconds and four visible streams. System reduced motion provides stationary fades.
+- Board states, completions, time and whisper count persist. Pointer capture releases for the dialog, and Esc returns cleanly. One overall volume slider remains the only configurable setting.
+- Verification: strict build and 26 tests passed; all five puzzle rewards reached through browser controls; saved crypt completion and Esc exit checked in the actual game; phone-width glyph layout and falling whisper text inspected. See docs/PUZZLE_TABLES.md.

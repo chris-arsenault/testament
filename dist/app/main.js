@@ -1,3 +1,4 @@
+import { PuzzleUI } from './puzzle-ui.js';
 import { captureMouse, lookDelta, volumeMix } from './look.js';
 import { Narrator, roomRecords } from './narrative.js';
 import { Cathedral } from './rendering.js';
@@ -60,6 +61,11 @@ document.addEventListener('pointerlockchange', () => { const locked = document.p
 document.addEventListener('pointerlockerror', fallbackLook);
 document.addEventListener('mousemove', e => { if (active && (document.pointerLockElement === canvas || (softLook && e.target === canvas)))
     rotate(e.movementX, e.movementY); });
+const puzzles = new PuzzleUI(() => w, audio.effects, () => { active = false; softLook = false; canvas.style.cursor = ''; keys.clear(); autoWalk = false; drag = false; if (document.pointerLockElement === canvas)
+    document.exitPointerLock(); audio.pause(true); document.body.classList.remove('cinematic'); $('roomCard').classList.remove('visible'); $('narrator').classList.remove('speaking'); $('puzzleUse').classList.add('hidden'); }, (lock) => { active = started; keys.clear(); audio.pause(false); last = performance.now(); if (lock)
+    capture(); }, reduced);
+$('puzzleUse').onclick = () => { if (active && puzzles.near())
+    puzzles.open(); };
 function enterRoom() { const r = roomRecords[w.place]; $('roomTitle').textContent = r.title; $('roomDetail').textContent = r.detail; $('roomRecord').textContent = 'LOCATION RECORD / ' + r.record; $('roomKicker').textContent = w.place === 'stair' ? 'TAKE ' + String(w.turns + 1).padStart(2, '0') + ' / THE FIRST ASCENT' : 'FIELD RECORD / ' + String(w.returns + 1).padStart(2, '0') + ' / ARRIVAL NOT CONFIRMED'; roomTime = 5.2; castTime = 0; narrator.enter(w); }
 function cast(role, name, detail) { $('castRole').textContent = role; $('castName').textContent = name; $('castDetail').textContent = detail; castTime = 7; }
 function save() { try {
@@ -82,7 +88,7 @@ function roster() { const r = $('roster'); r.replaceChildren(); for (const witne
     } save(); roster(); };
     r.append(b);
 } }
-function pause() { if (menu.open)
+function pause() { if (menu.open || puzzles.isOpen)
     return; active = false; softLook = false; canvas.style.cursor = ''; if (document.pointerLockElement === canvas)
     document.exitPointerLock(); autoWalk = false; keys.clear(); drag = false; audio.pause(true); roster(); menu.showModal(); menu.tabIndex = -1; menu.focus(); menu.scrollTop = 0; save(); }
 function resume(lock = true) { menu.close(); active = started; audio.pause(false); keys.clear(); last = performance.now(); if (lock)
@@ -97,14 +103,19 @@ $('new').onclick = () => { if (!resetArmed) {
     resetArmed = true;
     $('new').textContent = 'Forget permanently?';
     return;
-} w = initial(); resetArmed = false; $('new').textContent = 'Forget this place'; save(); roster(); resume(); };
-addEventListener('keydown', e => { if ((e.code === 'Escape' || e.key === 'Escape') && !menu.open) {
+} w = initial(); puzzles.reset(); resetArmed = false; $('new').textContent = 'Forget this place'; save(); roster(); resume(); };
+addEventListener('keydown', e => { if (puzzles.isOpen)
+    return; if ((e.code === 'Escape' || e.key === 'Escape') && !menu.open) {
     e.preventDefault();
     e.stopPropagation();
     pause();
     return;
 } if (!active || e.target instanceof HTMLInputElement)
-    return; if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyF', 'Space'].includes(e.code)) {
+    return; if (e.code === 'KeyE' && !e.repeat && puzzles.near()) {
+    e.preventDefault();
+    puzzles.open();
+    return;
+} if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyF', 'Space'].includes(e.code)) {
     e.preventDefault();
     keys.add(e.code);
 } if (!e.repeat && e.code === 'KeyR')
@@ -138,6 +149,8 @@ function frame(now) {
     requestAnimationFrame(frame);
     const dt = Math.min(.05, (now - last) / 1000);
     last = now;
+    puzzles.update(dt);
+    $('puzzleUse').classList.toggle('hidden', !active || !puzzles.near());
     if (active) {
         let forward = (keys.has('KeyW') || autoWalk ? 1 : 0) - (keys.has('KeyS') ? 1 : 0), side = (keys.has('KeyD') ? 1 : 0) - (keys.has('KeyA') ? 1 : 0);
         const length = Math.hypot(forward, side) || 1;
@@ -204,6 +217,7 @@ function frame(now) {
     }
     $('location').textContent = names[w.place];
     renderer.draw(w, active ? dt : 0, reduced);
+    renderer.table.material.emissiveIntensity = puzzles.states[w.place].solved ? .05 : .6;
 }
 requestAnimationFrame(frame);
-addEventListener('pagehide', save);
+addEventListener('pagehide', () => { save(); puzzles.save(); });

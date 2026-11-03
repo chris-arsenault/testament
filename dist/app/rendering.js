@@ -2,6 +2,7 @@ import { Relics } from './relics.js';
 import * as T from '../three.module.js';
 import { present } from './world.js';
 export class Cathedral {
+    table;
     relics;
     scene;
     camera;
@@ -253,6 +254,12 @@ export class Cathedral {
             const a = i * 2.399, r = Math.sqrt(i) * .6;
             this.mesh(new T.IcosahedronGeometry(.7 + (i % 3) * .15, 0), green, Math.sin(a) * r, .4, Math.cos(a) * r - 8, bushes);
         }
+        const tableStone = this.mat('#263936', .3);
+        this.box(-3.7, .45, 8, .7, .9, .7, tableStone);
+        this.table = this.box(-3.7, .95, 8, 1.7, .16, 1.7, this.mat('#718b76', .4, '#617b51'));
+        for (let i = 0; i < 4; i++)
+            for (let j = 0; j < 4; j++)
+                this.box(-4.25 + i * .36, 1.04, 7.45 + j * .36, .25, .025, .25, (i + j) % 2 ? gold : dark);
         this.letter = this.box(-4, 1, -6, .7, .02, 1, white);
         for (let i = 0; i < 3; i++) {
             const g = new T.Group();

@@ -2,7 +2,7 @@ import {Relics} from './relics.js';
 import * as T from '../three.module.js';
 import {present,type World} from './world.js';
 export class Cathedral {
- relics:Relics; scene:any; camera:any; renderer:any; root:any; cat:any; angel:any; eyes:any; wings:any; water:any; bridge:any; screen:any; roots:any; ceiling:any; throne:any; low:any; companions:any[]=[];letter:any;light:any; rose:any;dust:any; clock=0;lastPlace='';materials:any[]=[];
+ table:any; relics:Relics; scene:any; camera:any; renderer:any; root:any; cat:any; angel:any; eyes:any; wings:any; water:any; bridge:any; screen:any; roots:any; ceiling:any; throne:any; low:any; companions:any[]=[];letter:any;light:any; rose:any;dust:any; clock=0;lastPlace='';materials:any[]=[];
  constructor(canvas:HTMLCanvasElement){
   this.renderer=new T.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));this.renderer.setSize(innerWidth,innerHeight);this.renderer.outputColorSpace=T.SRGBColorSpace;this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.15;
   this.scene=new T.Scene();this.scene.background=new T.Color('#171c22');this.scene.fog=new T.FogExp2('#171c22',.019);this.camera=new T.PerspectiveCamera(68,innerWidth/innerHeight,.08,160);this.camera.rotation.order='YXZ';
@@ -46,6 +46,7 @@ export class Cathedral {
   for(let i=0;i<3;i++){const ring=this.ring(1.4+i*.58,.07,gold,0,0,0,this.angel);ring.rotation.x=i*.8;ring.rotation.y=i*.7;}
   const eyeGeo=new T.SphereGeometry(.07,6,4);this.eyes=new T.InstancedMesh(eyeGeo,glow,1000);const pupil=new T.InstancedMesh(new T.SphereGeometry(.031,5,4),black,1000);const dummy=new T.Object3D();for(let i=0;i<1000;i++){const a=i*2.399,y=1-2*i/1000,r=Math.sqrt(1-y*y),rad=1.3+(i%3)*.55;dummy.position.set(Math.cos(a)*r*rad,y*rad,Math.sin(a)*r*rad);dummy.lookAt(dummy.position.clone().multiplyScalar(2));dummy.scale.set(1.5,.85,.6);dummy.updateMatrix();this.eyes.setMatrixAt(i,dummy.matrix);dummy.position.multiplyScalar(1.025);dummy.updateMatrix();pupil.setMatrixAt(i,dummy.matrix);}this.angel.add(this.eyes,pupil);
   const bushes=new T.Group();bushes.name='bushes';this.root.add(bushes);for(let i=0;i<35;i++){const a=i*2.399,r=Math.sqrt(i)*.6;this.mesh(new T.IcosahedronGeometry(.7+(i%3)*.15,0),green,Math.sin(a)*r,.4,Math.cos(a)*r-8,bushes);}
+  const tableStone=this.mat('#263936',.3);this.box(-3.7,.45,8,.7,.9,.7,tableStone);this.table=this.box(-3.7,.95,8,1.7,.16,1.7,this.mat('#718b76',.4,'#617b51'));for(let i=0;i<4;i++)for(let j=0;j<4;j++)this.box(-4.25+i*.36,1.04,7.45+j*.36,.25,.025,.25,(i+j)%2?gold:dark);
   this.letter=this.box(-4,1,-6,.7,.02,1,white);
   for(let i=0;i<3;i++){const g=new T.Group();this.root.add(g);this.mesh(new T.CylinderGeometry(.23,.38,1.25,8),dark,0,.85,0,g);this.mesh(new T.SphereGeometry(.2,12,8),white,0,1.65,0,g);this.box(.08,1.1,-.24,.04,.9,.08,glow,g);for(const x of [-.35,.35])this.mesh(new T.CylinderGeometry(.055,.07,.8,6),gold,x,.9,0,g);this.companions.push(g);}
  }
