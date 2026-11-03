@@ -1,4 +1,5 @@
 import { witnesses } from './content.js';
+import { homes, rooms, roomPoint } from './rooms.js';
 // Internal contracts, never rendered as instructions. Channels have separate clocks and action gates.
 export const witnessEffects = {
     peter: { duration: 18, cooldown: 22, delay: 0, color: '#d8bd76', sound: 'a stone bell held open' },
@@ -30,9 +31,8 @@ export const witnessTiming = {
 };
 export function manifestation(w, id) { const m = w.manifestations[id]; return m && m.remaining > 0 && m.place === w.place ? m : undefined; }
 export function witnessVisual(w, id) { const m = w.manifestations[id]; return m && m.visual > 0 && m.place === w.place ? m : undefined; }
-export function nearbyWitness(w, id) { if (!w.party.includes(id))
-    return false; if (!w.left.includes(id))
-    return true; const s = w.waitSpots[id]; return !!s && s.place === w.place && Math.hypot(w.x - s.x, w.z - s.z) < 7; }
+export function nearbyWitness(w, id) { if (w.party.includes(id) && !w.left.includes(id))
+    return true; const s = w.party.includes(id) ? w.waitSpots[id] : homes[id]; return !!s && s.place === w.place && Math.hypot(w.x - s.x, w.z - s.z) < 7; }
 export function witnessBodyHeight(w) { return manifestation(w, 'alphaeus')?.remaining ? .68 : 1.7; }
 function condition(w, id) {
     if (id === 'judas')
@@ -41,7 +41,7 @@ function condition(w, id) {
         return false;
     const threshold = w.gazeKind === 'threshold' && w.gazeFired && w.gazeLost === 0;
     switch (id) {
-        case 'peter': return threshold && Math.min(Math.hypot(w.x, w.z + 16), Math.hypot(w.x - 12, w.z), Math.hypot(w.x + 12, w.z)) < 9;
+        case 'peter': return threshold && Object.values(rooms[w.place].doors).some(p => Math.hypot(w.x - p.x, w.z - p.z) < 9);
         case 'andrew':
         case 'matthew': return w.place === 'water';
         case 'james': return w.still > 6;
@@ -135,12 +135,14 @@ export function tickWitnesses(w, dt, route) {
                     w.skin = true;
                     w.passage = true;
                     break;
-                case 'thomas':
+                case 'thomas': {
                     w.stable = true;
-                    m.x = Math.max(-9, Math.min(9, w.x - Math.sin(w.yaw) * 2.5));
-                    m.z = Math.max(-13, Math.min(13, w.z - Math.cos(w.yaw) * 2.5));
+                    const p = roomPoint(w.place, w.x - Math.sin(w.yaw) * 2.5, w.z - Math.cos(w.yaw) * 2.5, 2.2);
+                    m.x = p.x;
+                    m.z = p.z;
                     m.y = w.y + .23;
                     break;
+                }
                 case 'alphaeus':
                     w.passage = true;
                     break;

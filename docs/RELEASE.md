@@ -59,3 +59,13 @@ Adds branching roots, silent table interfaces, a chthonic angel-contact chamber,
 ## Version 9 — Independent witness phenomena
 
 All twelve witnesses now have independently timed audio, visual and physical/interaction channels. Adds linked cat copies, remembered menu language, a disposable contradictory water ledger, and changes to collision, body size, gravity, support and threshold destinations. Strict compilation and 57 checks pass, with browser verification described in WITNESS_PHENOMENA.md. Published November 2, 2026 (America/Phoenix), source `0800796c8e8b11290853180eb74a8d7645fef308`, saved version `appgprj_6ae8ef5a5b408191a788e3fc3596804b~appgver_f1351000f9b08191b38c6828a80c4cac`, deployment `appgdep_6ae97653367c8191ab9c8da913390858` (succeeded). The public entry loaded without console errors. This post-publication receipt changes documentation only.
+
+## Version 10 — Sculpted cathedral
+
+Published November 2, 2026 (America/Phoenix), source `42e16b71ec8bad7b0d1583576c50171132ffd44b`, saved version `appgprj_6ae8ef5a5b408191a788e3fc3596804b~appgver_427347703e4c8191b77ec385b00e044d`, deployment `appgdep_6ae97d5e02f081918ea4d10235f85418` (succeeded).
+
+Rebuilds architectural details, furniture, the calico, all twelve disciples, the angel, and shrubs with reusable procedural models. Static material batches and instancing keep the detail economical. Physical tread dimensions, pier clearance, throne support and witness transformations are verified. Strict compilation and 64 checks pass. All rooms, all twelve models and affected phenomena were visually inspected; the public entry loaded without console errors. See GEOMETRY_PASS.md for the full inventory and limits. This receipt was added after publication and changes documentation only.
+
+## Version 11 — Seven rooms and resident witnesses
+
+Prepared for publication: seven spatially distinct rooms, twelve persistent home assignments, in-world identity and party replacement encounters, protected throne claims, left-click examination and numbered companion orders. The menu roster is removed. Two new room puzzles, narration records and score assignments complete the expansion. Strict compilation and 76 checks pass; browser verification and limits are recorded in SEVEN_ROOMS.md. Deployment receipt follows after publication.

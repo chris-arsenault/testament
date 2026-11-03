@@ -1,3 +1,4 @@
+import {rooms,floorHeight,type Portal} from './rooms.js';
 import * as T from '../three.module.js';
 import {witnesses,type Witness} from './content.js';
 import {witnessEffects,witnessVisual,manifestation} from './witnesses.js';
@@ -39,6 +40,7 @@ export class WitnessVisuals {
  }
  update(w:World,reduced:boolean){const view=this.view,time=reduced?0:w.time,amounts=this.veil.material.uniforms.amounts.value;
   witnesses.forEach(({id},i)=>{const m=witnessVisual(w,id),g=this.groups[id];g.visible=!!m;amounts[i]=m?Math.min(1,(witnessEffects[id].duration-m.visual)/.65,m.visual/1.4):0;if(!m)return;
+   if(id==='peter'||id==='philip'){const doors:Portal[]=['front','left','right'];g.children.forEach((c:any,j:number)=>{const door=doors[id==='peter'?j:Math.floor(j/3)],p=rooms[w.place].doors[door],offset=id==='philip'?(j%3)*.12:0;c.position.set(p.x, floorHeight(w.place,p.x,p.z)+(w.place==='stair'&&door==='front'?8.1:0)+(w.place==='garden'?2.1:w.place==='water'?2.3:w.place==='crypt'?2.6:3.4)+offset,p.z);c.rotation.y=door==='front'?0:Math.PI/2;c.scale.setScalar(w.place==='garden'?.7:w.place==='water'?.8:1);});}
    if(id==='thomas')g.position.set(m.x,m.y-.115,m.z);
    if(id==='jude'||id==='james'||id==='judas')g.position.set(m.x,m.y,m.z);
    if(id==='simon')g.children.forEach((c:any,j:number)=>{c.rotation.set(time*.1+j,time*.13,0);});

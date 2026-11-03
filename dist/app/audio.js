@@ -9,7 +9,7 @@ export class Sound {
     lastAmbient = 0;
     start() { this.music.start(); this.effects.start(); this.music.setVolume(.45); this.effects.setVolume(.65); }
     update(w) { if (this.music.filter)
-        this.music.filter.frequency.setTargetAtTime(w.underworld > 0 ? 260 : 20000, this.music.ctx.currentTime, .3); const stage = w.place === 'garden' ? (w.angel > .3 ? 3 : 6) : w.place === 'crypt' ? 4 : w.place === 'water' ? 1 : w.place === 'stair' ? w.turns % 3 : 2; this.music.movement(stage); if (w.distance - this.lastStep > .95) {
+        this.music.filter.frequency.setTargetAtTime(w.underworld > 0 ? 260 : 20000, this.music.ctx.currentTime, .3); const stage = w.place === 'garden' ? (w.angel > .3 ? 3 : 6) : w.place === 'crypt' ? 4 : w.place === 'scriptorium' ? 5 : w.place === 'choir' ? 6 : w.place === 'water' ? 1 : w.place === 'stair' ? w.turns % 3 : 2; this.music.movement(stage); if (w.distance - this.lastStep > .95) {
         this.lastStep = w.distance;
         this.effects.cue('step');
     } if (w.time - this.lastAmbient > 11) {

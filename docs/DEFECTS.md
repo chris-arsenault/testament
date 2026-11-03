@@ -220,3 +220,7 @@ Verification: strict TypeScript build; 39 automated tests passed; no runtime con
 ## Publication confirmation
 
 Version 8 published successfully on November 2, 2026 (America/Phoenix). Source: `75d076f237313b94dafea9e58a53a484f05a6dff`. Deployment: `appgdep_6ae96d8d7e2c8191b312d0c482982c90`. The live entry page and instruction-free nave table were verified after publication. This receipt was updated after publication and does not alter application files.
+
+## D-005 requirement superseded — resident homes
+
+The November 2, 2026 request for each disciple to return to an assigned home replaces ordinary gaze-directed waiting. Homes, encounter recruitment and protected throne swaps are implemented and verified in SEVEN_ROOMS.md. The earlier behavior remains documented above as release history, not the current acceptance requirement.

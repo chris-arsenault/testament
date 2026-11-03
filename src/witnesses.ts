@@ -1,5 +1,6 @@
 import {witnesses,type Witness} from './content.js';
 import type {World,Place} from './world.js';
+import {homes,rooms,roomPoint} from './rooms.js';
 export type Door='front'|'left'|'right'|'low';
 export type Manifestation={place:Place;x:number;y:number;z:number;remaining:number;visual:number;cooldown:number;charge:number;latched:boolean;count:number;age:number;pending:boolean;sounded:boolean;shown:boolean;acted:boolean;ended?:boolean;doors?:Record<Door,Place>};
 // Internal contracts, never rendered as instructions. Channels have separate clocks and action gates.
@@ -34,14 +35,14 @@ export const witnessTiming:Record<Witness,{sound:number;visual:number;world:numb
 };
 export function manifestation(w:World,id:Witness){const m=w.manifestations[id];return m&&m.remaining>0&&m.place===w.place?m:undefined;}
 export function witnessVisual(w:World,id:Witness){const m=w.manifestations[id];return m&&m.visual>0&&m.place===w.place?m:undefined;}
-export function nearbyWitness(w:World,id:Witness){if(!w.party.includes(id))return false;if(!w.left.includes(id))return true;const s=w.waitSpots[id];return !!s&&s.place===w.place&&Math.hypot(w.x-s.x,w.z-s.z)<7;}
+export function nearbyWitness(w:World,id:Witness){if(w.party.includes(id)&&!w.left.includes(id))return true;const s=w.party.includes(id)?w.waitSpots[id]:homes[id];return !!s&&s.place===w.place&&Math.hypot(w.x-s.x,w.z-s.z)<7;}
 export function witnessBodyHeight(w:World){return manifestation(w,'alphaeus')?.remaining? .68:1.7;}
 function condition(w:World,id:Witness){
  if(id==='judas')return w.party.includes(id)&&w.left.includes(id);
  if(!nearbyWitness(w,id))return false;
  const threshold=w.gazeKind==='threshold'&&w.gazeFired&&w.gazeLost===0;
  switch(id){
-  case 'peter':return threshold&&Math.min(Math.hypot(w.x,w.z+16),Math.hypot(w.x-12,w.z),Math.hypot(w.x+12,w.z))<9;
+  case 'peter':return threshold&&Object.values(rooms[w.place].doors).some(p=>Math.hypot(w.x-p.x,w.z-p.z)<9);
   case 'andrew':case 'matthew':return w.place==='water';
   case 'james':return w.still>6;
   case 'john':return w.place==='garden'&&Math.hypot(w.x,w.z+7)<11;
@@ -83,7 +84,7 @@ export function tickWitnesses(w:World,dt:number,route:(door:Door)=>Place){
    case 'john':w.bridge=true;w.roots=true;break;
    case 'philip':w.passage=true;w.reality=2;w.tongue=(w.tongue+1)%3;break;
    case 'bartholomew':w.skin=true;w.passage=true;break;
-   case 'thomas':w.stable=true;m.x=Math.max(-9,Math.min(9,w.x-Math.sin(w.yaw)*2.5));m.z=Math.max(-13,Math.min(13,w.z-Math.cos(w.yaw)*2.5));m.y=w.y+.23;break;
+   case 'thomas':{w.stable=true;const p=roomPoint(w.place,w.x-Math.sin(w.yaw)*2.5,w.z-Math.cos(w.yaw)*2.5,2.2);m.x=p.x;m.z=p.z;m.y=w.y+.23;break;}
    case 'alphaeus':w.passage=true;break;
    case 'jude':w.roots=true;w.passage=true;break;
    case 'simon':w.throne=false;break;

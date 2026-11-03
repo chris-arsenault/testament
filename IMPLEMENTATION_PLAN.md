@@ -275,3 +275,9 @@ Version 9 is published from `0800796c8e8b11290853180eb74a8d7645fef308`. Deployme
 ### 2026-11-02 — Modeling and geometry pass
 
 Completed the requested visual pass across architecture, stairs, furniture, the calico, all twelve disciples, the angel, and shrubs. Procedural mesh builders and material batching now separate asset construction from world presentation. Existing physical footprints and throne/tread support heights are preserved. All 64 checks pass, with close visual inspections of the rooms, figures, and affected phenomena. See docs/GEOMETRY_PASS.md for the asset inventory, measured rendering costs, and acceptance evidence. Publication receipt follows in docs/RELEASE.md.
+
+### 2026-11-02 — Seven rooms and homes
+
+Completed seven distinct spatial designs with shared geometry/collision layout data, two new puzzles, all twelve disciple homes, nearby identity/recruitment encounters, throne-safe swaps, left-click examination and retained 1–3 orders. Removed the pause-menu roster. Old ordinary wait positions now migrate to homes; throne claims persist. This supersedes D-005 gaze-directed waiting under the user's latest request.
+
+Strict compilation and 76 automated checks pass. Local browser review covered seven spaces, click recruitment, protected throne slots, both new puzzle completions, the simplified menu and phone-width encounter layout. See docs/SEVEN_ROOMS.md for the architecture, inventory and limits. Publication receipt follows in docs/RELEASE.md.

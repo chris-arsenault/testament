@@ -5,6 +5,7 @@ import { places } from './world.js';
 import { witnesses } from './content.js';
 import { discipleWhispers } from './whispers.js';
 import { PuzzleAudio } from './puzzle-audio.js';
+import { rooms, floorHeight } from './rooms.js';
 const $ = (id) => document.getElementById(id);
 const numerals = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
 export class PuzzleUI {
@@ -38,7 +39,7 @@ export class PuzzleUI {
         this.dialog.addEventListener('cancel', e => { e.preventDefault(); this.close(false); });
     }
     get isOpen() { return this.dialog.open; }
-    near() { const w = this.world(); return Math.abs(w.y) < 1.7 && Math.hypot(w.x + 3.7, w.z - 8) < 4.8; }
+    near() { const w = this.world(), p = rooms[w.place].table; return Math.abs(w.y - floorHeight(w.place, p.x, p.z)) < 1.7 && Math.hypot(w.x - p.x, w.z - p.z) < 4.8; }
     open() { if (this.isOpen)
         return; this.place = this.world().place; const debt = manifestation(this.world(), 'matthew'); this.echo = this.place === 'water' && debt && !this.states.water.solved ? borrowedLedger(this.states.water) : null; this.echoTime = this.echo ? debt.remaining : 0; this.onOpen(); this.nextWhisper = whisperInterval(this.states[this.place].elapsed); this.dialog.showModal(); this.dialog.scrollTop = 0; $('puzzleStatus').textContent = ''; this.render(); $('puzzleTitle').focus(); }
     close(capture) { this.mergeEcho(); this.echo = null; this.echoTime = 0; this.save(); this.dialog.close(); this.sound.stop(); $('whisperRain').replaceChildren(); this.onClose(capture); }
@@ -72,10 +73,14 @@ export class PuzzleUI {
             const button = document.createElement('button');
             button.className = 'puzzle-piece';
             button.dataset.index = String(i);
-            if (this.place === 'nave') {
+            if (this.place === 'nave' || this.place === 'choir') {
                 button.innerHTML = '<span class="north-star" aria-hidden="true">✦</span><span class="halo" aria-hidden="true"></span>';
                 button.querySelector('.halo').style.transform = `rotate(${v * 90}deg)`;
                 button.setAttribute('aria-label', `Halo ${i + 1}, cut facing ${['north', 'east', 'south', 'west'][v]}`);
+            }
+            else if (this.place === 'scriptorium') {
+                button.textContent = ['𐤀', '𐤁', '𐤂', '𐤃', '𐤄', '𐤅', '𐤆', '𐤇', '𐤈'][v];
+                button.setAttribute('aria-label', `Line ${Math.floor(i / 3) + 1}, letter ${v + 1}`);
             }
             else if (this.place === 'stair') {
                 button.textContent = v ? numerals[v] : '';

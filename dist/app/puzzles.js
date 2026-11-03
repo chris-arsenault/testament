@@ -6,14 +6,25 @@ export const puzzleInfo = {
     stair: { title: 'THE MISSING STEP', verse: 'The angels were ascending and descending. No one had paid them for the descent.', political: 'Every promotion promises a higher floor. Someone still owns the staircase.' },
     garden: { title: 'THE BODY BEFORE THE BODY', verse: 'In the beginning, God created the heavens and the earth. The deed was filed later.', political: 'The first enclosure was a sentence: this is mine. The serpent only taught us how to sign it.' },
     water: { title: 'FOUR NAMES FOR WATER', verse: 'Let it divide the waters from the waters. Let neither bank remember the river was whole.', political: 'They promised that everything would belong to everyone. Then they kept the key to the storehouse.' },
-    crypt: { title: 'THE UNEMPLOYED STARS', verse: 'Son of man, can these bones live? Only if their return can be entered as growth.', political: 'The ledger counts resurrection as productivity. It has no column for the life that wanted to remain unmeasured.' }
+    crypt: { title: 'THE UNEMPLOYED STARS', verse: 'Son of man, can these bones live? Only if their return can be entered as growth.', political: 'The ledger counts resurrection as productivity. It has no column for the life that wanted to remain unmeasured.' },
+    scriptorium: { title: 'THE LETTER THAT WROTE ITS READER', verse: 'They began to speak with other tongues. The translation charged them by the word.', political: 'A border is a sentence with an army behind it. The people who cannot read it still have to pay.' },
+    choir: { title: 'THE SIXTH PART OF SILENCE', verse: 'Be still, and know. The silence was leased before anyone had heard it.', political: 'The factory closed, but its rhythm remained in our bodies. We called the silence unemployment.' }
 };
 export function toggleCross(board, index) { const row = Math.floor(index / 3), col = index % 3; for (const [r, c] of [[row, col], [row - 1, col], [row + 1, col], [row, col - 1], [row, col + 1]])
     if (r >= 0 && r < 3 && c >= 0 && c < 3)
         board[r * 3 + c] = 1 - board[r * 3 + c]; }
 export function freshPuzzle(place) {
     let board;
-    if (place === 'nave')
+    if (place === 'scriptorium')
+        board = [1, 2, 0, 5, 3, 4, 7, 8, 6];
+    else if (place === 'choir') {
+        board = Array(6).fill(0);
+        for (const i of [0, 2, 5]) {
+            board[i]++;
+            board[(i + 1) % 6]++;
+        }
+    }
+    else if (place === 'nave')
         board = [1, 3, 2, 1, 3];
     else if (place === 'stair') {
         board = [1, 2, 3, 4, 5, 6, 7, 8, 0];
@@ -38,11 +49,11 @@ export function freshPuzzle(place) {
     return { board, elapsed: 0, solved: false, selected: null, whispers: 0 };
 }
 export function isSolved(place, b) {
-    if (place === 'nave' || place === 'crypt')
+    if (place === 'nave' || place === 'crypt' || place === 'choir')
         return b.every(v => v === 0);
     if (place === 'stair')
         return b.every((v, i) => v === (i + 1) % 9);
-    if (place === 'garden')
+    if (place === 'garden' || place === 'scriptorium')
         return b.every((v, i) => v === i);
     const unique = (a) => a.every(v => v >= 1 && v <= 4) && new Set(a).size === 4;
     for (let r = 0; r < 4; r++)
@@ -60,7 +71,16 @@ export function act(place, s, index) {
     if (s.solved || index < 0 || index >= s.board.length)
         return false;
     let changed = true;
-    if (place === 'nave')
+    if (place === 'scriptorium') {
+        const row = Math.floor(index / 3) * 3;
+        s.board.splice(row, 3, ...[s.board[row + 1], s.board[row + 2], s.board[row]]);
+    }
+    else if (place === 'choir') {
+        s.board[index] = (s.board[index] + 1) % 4;
+        const next = (index + 1) % 6;
+        s.board[next] = (s.board[next] + 1) % 4;
+    }
+    else if (place === 'nave')
         s.board[index] = (s.board[index] + 1) % 4;
     else if (place === 'stair') {
         const empty = s.board.indexOf(0);
@@ -95,10 +115,14 @@ export function restorePuzzle(place, value) {
     const fresh = freshPuzzle(place), s = value;
     if (!s || !Array.isArray(s.board) || s.board.length !== fresh.board.length)
         return fresh;
-    const max = place === 'nave' ? 3 : place === 'water' ? 4 : place === 'crypt' ? 1 : 8;
+    const max = place === 'nave' || place === 'choir' ? 3 : place === 'water' ? 4 : place === 'crypt' ? 1 : 8;
     if (!s.board.every(n => Number.isInteger(n) && n >= 0 && n <= max))
         return fresh;
     if ((place === 'garden' || place === 'stair') && new Set(s.board).size !== 9)
+        return fresh;
+    if (place === 'choir' && ((s.board.reduce((sum, n, i) => sum + n * (i % 2 ? -1 : 1), 0) % 4) + 4) % 4 !== 0)
+        return fresh;
+    if (place === 'scriptorium' && [0, 3, 6].some(start => new Set(s.board.slice(start, start + 3)).size !== 3 || s.board.slice(start, start + 3).some((n, i) => n < start || n > start + 2 || (i < 2 && (n - start + 1) % 3 !== s.board[start + i + 1] - start))))
         return fresh;
     if (place === 'water' && sudokuClues.some((n, i) => n !== 0 && s.board[i] !== n))
         return fresh;

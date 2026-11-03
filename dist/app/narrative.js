@@ -18,7 +18,9 @@ export const roomRecords = {
     stair: { title: 'JACOB’S SECOND LADDER', record: 'GENESIS 28:13', detail: 'UPPER FLOOR / BELOW THE POINT OF DEPARTURE', verse: 'stair' },
     garden: { title: 'THE GARDEN OF WITNESSES', record: 'REVELATION 4:7', detail: 'EDEN / EAST OF THE EASTERN GATE', verse: 'door' },
     water: { title: 'THE SEA ABOVE', record: 'GENESIS 1:8', detail: 'SECOND DAY / THIRD ATTEMPT', verse: 'water' },
-    crypt: { title: 'THE VALLEY OF NAMES', record: 'EZEKIEL 37:4', detail: 'BURIAL REGISTER / NO DEATHS RECORDED', verse: 'bones' }
+    crypt: { title: 'THE VALLEY OF NAMES', record: 'EZEKIEL 37:4', detail: 'BURIAL REGISTER / NO DEATHS RECORDED', verse: 'bones' },
+    scriptorium: { title: 'THE LETTER BEFORE LANGUAGE', record: 'ACTS 2:5', detail: 'BABEL / TRANSLATION PRECEDES THE ORIGINAL', verse: 'doubt' },
+    choir: { title: 'THE CHOIR WITHOUT A MOUTH', record: 'REVELATION 8:2', detail: 'THE SEVENTH SILENCE / STILL BEING RECORDED', verse: 'still' }
 };
 const eventVerses = { ascent: 'stair', descent: 'return', angel: 'eyes', reality: 'door', stable: 'doubt', rest: 'still', lament: 'still', division: 'water', bridge: 'water', bones: 'breath', roots: 'breath', garden: 'renewal', renewal: 'renewal', rejoin: 'return', silver: 'door', cat: 'house' };
 export class Narrator {

@@ -33,4 +33,4 @@ Representative local inspection views settled around 17 ms per frame on this hos
 
 The models remain stylized procedural assets. This pass does not add skeletal animation, realtime cast shadows, or recursive portal rendering. Existing music, puzzles, narrative, and world rules continue to operate.
 
-Publication receipt follows in RELEASE.md.
+Published as version 10 from `42e16b71ec8bad7b0d1583576c50171132ffd44b`. Deployment `appgdep_6ae97d5e02f081918ea4d10235f85418` succeeded. The public entry loaded without console errors. This publication receipt was appended locally after deployment.

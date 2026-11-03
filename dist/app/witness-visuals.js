@@ -1,3 +1,4 @@
+import { rooms, floorHeight } from './rooms.js';
 import * as T from '../three.module.js';
 import { witnesses } from './content.js';
 import { witnessEffects, witnessVisual, manifestation } from './witnesses.js';
@@ -114,6 +115,10 @@ export class WitnessVisuals {
             amounts[i] = m ? Math.min(1, (witnessEffects[id].duration - m.visual) / .65, m.visual / 1.4) : 0;
             if (!m)
                 return;
+            if (id === 'peter' || id === 'philip') {
+                const doors = ['front', 'left', 'right'];
+                g.children.forEach((c, j) => { const door = doors[id === 'peter' ? j : Math.floor(j / 3)], p = rooms[w.place].doors[door], offset = id === 'philip' ? (j % 3) * .12 : 0; c.position.set(p.x, floorHeight(w.place, p.x, p.z) + (w.place === 'stair' && door === 'front' ? 8.1 : 0) + (w.place === 'garden' ? 2.1 : w.place === 'water' ? 2.3 : w.place === 'crypt' ? 2.6 : 3.4) + offset, p.z); c.rotation.y = door === 'front' ? 0 : Math.PI / 2; c.scale.setScalar(w.place === 'garden' ? .7 : w.place === 'water' ? .8 : 1); });
+            }
             if (id === 'thomas')
                 g.position.set(m.x, m.y - .115, m.z);
             if (id === 'jude' || id === 'james' || id === 'judas')

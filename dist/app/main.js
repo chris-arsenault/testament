@@ -1,3 +1,4 @@
+import { EncounterUI } from './encounter-ui.js';
 import { menuTongue } from './languages.js';
 import { witnessEffects } from './witnesses.js';
 import { interruptAttention } from './attention.js';
@@ -6,7 +7,7 @@ import { captureMouse, lookDelta, volumeMix } from './look.js';
 import { Narrator, roomRecords } from './narrative.js';
 import { Cathedral } from './rendering.js';
 import { Sound } from './audio.js';
-import { initial, restore, tick, walk, select, separate, touchAngel, updateWaiting } from './world.js';
+import { initial, restore, tick, walk, separate, touchAngel, updateWaiting } from './world.js';
 import { witnesses } from './content.js';
 const $ = (id) => document.getElementById(id);
 const canvas = $('world'), menu = $('menu');
@@ -64,11 +65,21 @@ document.addEventListener('pointerlockchange', () => { const locked = document.p
 document.addEventListener('pointerlockerror', fallbackLook);
 document.addEventListener('mousemove', e => { if (active && (document.pointerLockElement === canvas || (softLook && e.target === canvas)))
     rotate(e.movementX, e.movementY); });
-const puzzles = new PuzzleUI(() => w, audio.effects, () => { active = false; interruptAttention(w); softLook = false; canvas.style.cursor = ''; keys.clear(); autoWalk = false; drag = false; if (document.pointerLockElement === canvas)
-    document.exitPointerLock(); audio.pause(true); document.body.classList.remove('cinematic'); $('roomCard').classList.remove('visible'); $('narrator').classList.remove('speaking'); $('puzzleUse').classList.add('hidden'); }, (lock) => { active = started; keys.clear(); audio.pause(false); last = performance.now(); if (lock)
-    capture(); }, reduced);
-$('puzzleUse').onclick = () => { if (active && puzzles.near())
-    puzzles.open(); };
+function suspend() { active = false; interruptAttention(w); softLook = false; canvas.style.cursor = ''; keys.clear(); autoWalk = false; drag = false; if (document.pointerLockElement === canvas)
+    document.exitPointerLock(); audio.pause(true); document.body.classList.remove('cinematic'); $('roomCard').classList.remove('visible'); $('narrator').classList.remove('speaking'); $('puzzleUse').classList.add('hidden'); }
+function continueWorld(lock) { active = started; keys.clear(); audio.pause(false); last = performance.now(); if (lock)
+    capture(); }
+const puzzles = new PuzzleUI(() => w, audio.effects, suspend, continueWorld, reduced);
+const encounters = new EncounterUI(() => w, save, suspend, continueWorld);
+function interact(point) { if (!active)
+    return false; const target = renderer.interaction(w, point); if (!target)
+    return false; if (target.kind === 'witness')
+    encounters.open(target.id);
+else if (target.kind === 'puzzle')
+    puzzles.open();
+else
+    touchAngel(w); return true; }
+$('puzzleUse').onclick = () => interact();
 function enterRoom() { const r = roomRecords[w.place]; $('roomTitle').textContent = r.title; $('roomDetail').textContent = r.detail; $('roomRecord').textContent = 'LOCATION RECORD / ' + r.record; $('roomKicker').textContent = w.place === 'stair' ? 'TAKE ' + String(w.turns + 1).padStart(2, '0') + ' / THE FIRST ASCENT' : 'FIELD RECORD / ' + String(w.returns + 1).padStart(2, '0') + ' / ARRIVAL NOT CONFIRMED'; roomTime = 5.2; castTime = 0; narrator.enter(w); }
 function cast(role, name, detail) { $('castRole').textContent = role; $('castName').textContent = name; $('castDetail').textContent = detail; castTime = 7; }
 function save() { try {
@@ -77,24 +88,10 @@ function save() { try {
 catch {
     storage = false;
 } $('storageNote').textContent = storage ? '' : 'This browser cannot keep your place after closing.'; }
-function language() { const t = menuTongue(w.tongue); $('menuHeading').textContent = t.heading; $('partyHelp').textContent = t.help; $('resume').textContent = t.resume; $('home').textContent = t.home; $('new').textContent = resetArmed ? t.confirm : t.forget; document.getElementById('menuHeading').lang = ['en', 'fr', 'pt'][w.tongue]; }
-function roster() { language(); const r = $('roster'); r.replaceChildren(); for (const witness of witnesses) {
-    const b = document.createElement('button');
-    b.setAttribute('aria-pressed', String(w.party.includes(witness.id)));
-    b.innerHTML = `<strong>${witness.name}</strong><small>${witness.body}</small><em>${witness.sign}</em>`;
-    b.onclick = () => { if (w.party.includes(witness.id))
-        select(w, w.party.filter(x => x !== witness.id));
-    else if (w.party.length < 3)
-        select(w, [...w.party, witness.id]);
-    else {
-        $('partyHelp').textContent = 'Three are beside you. Release one to welcome another.';
-        return;
-    } save(); roster(); };
-    r.append(b);
-} }
-function pause() { if (menu.open || puzzles.isOpen)
+function language() { const t = menuTongue(w.tongue); $('menuHeading').textContent = t.heading; $('resume').textContent = t.resume; $('home').textContent = t.home; $('new').textContent = resetArmed ? t.confirm : t.forget; document.getElementById('menuHeading').lang = ['en', 'fr', 'pt'][w.tongue]; }
+function pause() { if (menu.open || puzzles.isOpen || encounters.isOpen)
     return; active = false; interruptAttention(w); softLook = false; canvas.style.cursor = ''; if (document.pointerLockElement === canvas)
-    document.exitPointerLock(); autoWalk = false; keys.clear(); drag = false; audio.pause(true); roster(); menu.showModal(); menu.tabIndex = -1; menu.focus(); menu.scrollTop = 0; save(); }
+    document.exitPointerLock(); autoWalk = false; keys.clear(); drag = false; audio.pause(true); language(); menu.showModal(); menu.tabIndex = -1; menu.focus(); menu.scrollTop = 0; save(); }
 function resume(lock = true) { menu.close(); active = started; audio.pause(false); keys.clear(); last = performance.now(); if (lock)
     capture(); }
 $('enter').onclick = () => { started = true; active = true; capture(); $('veil').classList.add('hidden'); audio.start(); applyVolume(); enterRoom(); captionTime = 0; $('caption').textContent = ''; };
@@ -107,30 +104,20 @@ $('new').onclick = () => { if (!resetArmed) {
     resetArmed = true;
     $('new').textContent = menuTongue(w.tongue).confirm;
     return;
-} w = initial(); puzzles.reset(); resetArmed = false; $('new').textContent = menuTongue(w.tongue).forget; save(); roster(); resume(); };
-addEventListener('keydown', e => { if (puzzles.isOpen)
+} w = initial(); puzzles.reset(); resetArmed = false; $('new').textContent = menuTongue(w.tongue).forget; save(); language(); resume(); };
+addEventListener('keydown', e => { if (puzzles.isOpen || encounters.isOpen)
     return; if ((e.code === 'Escape' || e.key === 'Escape') && !menu.open) {
     e.preventDefault();
     e.stopPropagation();
     pause();
     return;
 } if (!active || e.target instanceof HTMLInputElement)
-    return; if (e.code === 'KeyE' && !e.repeat) {
-    if (puzzles.near()) {
-        e.preventDefault();
-        puzzles.open();
-        return;
-    }
-    if (touchAngel(w)) {
-        e.preventDefault();
-        return;
-    }
-} if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space'].includes(e.code)) {
+    return; if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space'].includes(e.code)) {
     e.preventDefault();
     keys.add(e.code);
 } if (!e.repeat && e.code === 'KeyR')
     autoWalk = !autoWalk; if (!e.repeat && ['Digit1', 'Digit2', 'Digit3'].includes(e.code))
-    separate(w, Number(e.code.slice(-1)) - 1, renderer.waitTarget(w)); });
+    separate(w, Number(e.code.slice(-1)) - 1); });
 addEventListener('keyup', e => keys.delete(e.code));
 addEventListener('blur', () => { if (active)
     pause(); });
@@ -141,27 +128,41 @@ canvas.onpointerleave = () => { if (softLook) {
     canvas.style.cursor = '';
     $('lookHint').textContent = 'CLICK TO LOOK · ARROWS TO LOOK';
 } };
-canvas.onpointerdown = e => { if (!active)
+let touchTravel = 0;
+canvas.onpointerdown = e => { if (!active || e.button !== 0)
     return; if (e.pointerType === 'mouse') {
-    capture();
+    if (!interact())
+        capture();
     return;
-} drag = true; canvas.setPointerCapture(e.pointerId); };
-canvas.onpointerup = () => drag = false;
+} drag = true; touchTravel = 0; canvas.setPointerCapture(e.pointerId); };
+canvas.onpointerup = e => { if (drag && active && touchTravel < 9) {
+    const rect = canvas.getBoundingClientRect();
+    interact({ x: (e.clientX - rect.left) / rect.width * 2 - 1, y: 1 - (e.clientY - rect.top) / rect.height * 2 });
+} drag = false; };
 canvas.onpointercancel = () => drag = false;
-canvas.onpointermove = e => { if (e.pointerType !== 'mouse' && drag && active)
-    rotate(e.movementX, e.movementY); };
+canvas.onpointermove = e => { if (e.pointerType !== 'mouse' && drag && active) {
+    touchTravel += Math.hypot(e.movementX, e.movementY);
+    rotate(e.movementX, e.movementY);
+} };
 document.querySelectorAll('[data-key]').forEach(b => { b.onpointerdown = e => { e.preventDefault(); keys.add(b.dataset.key); b.setPointerCapture(e.pointerId); }; b.onpointerup = b.onpointercancel = () => keys.delete(b.dataset.key); });
 document.querySelectorAll('[data-companion]').forEach(b => b.onclick = () => { if (active)
-    separate(w, Number(b.dataset.companion), renderer.waitTarget(w)); });
-const names = { nave: 'THE HOUSE OF BREATH', stair: 'THE ASCENT WITHIN', garden: 'WHAT THE LEAVES REMEMBER', water: 'THE WATER ABOVE THE WATER', crypt: 'THE NAMES BENEATH THE NAME' };
+    separate(w, Number(b.dataset.companion)); });
+let hoverTime = 0;
 function frame(now) {
     requestAnimationFrame(frame);
     const dt = Math.min(.05, (now - last) / 1000);
     last = now;
     puzzles.update(dt);
-    if (puzzles.isOpen && !document.hidden)
+    if ((puzzles.isOpen || encounters.isOpen) && !document.hidden)
         updateWaiting(w, dt);
-    $('puzzleUse').classList.toggle('hidden', !active || !puzzles.near());
+    hoverTime -= dt;
+    if (hoverTime <= 0) {
+        hoverTime = .15;
+        const target = active ? renderer.interaction(w) : null;
+        $('puzzleUse').classList.toggle('hidden', !target);
+        if (target)
+            $('puzzleUse').textContent = target.kind === 'witness' ? witnesses.find(p => p.id === target.id).name : target.kind === 'puzzle' ? 'THE TABLE' : 'THE MANY-EYED';
+    }
     if (active) {
         let forward = (keys.has('KeyW') || autoWalk ? 1 : 0) - (keys.has('KeyS') ? 1 : 0), side = (keys.has('KeyD') ? 1 : 0) - (keys.has('KeyA') ? 1 : 0);
         const length = Math.hypot(forward, side) || 1;
@@ -240,7 +241,7 @@ function frame(now) {
         if (started)
             enterRoom();
     }
-    $('location').textContent = names[w.place];
+    $('location').textContent = roomRecords[w.place].title;
     renderer.draw(w, active ? dt : 0, reduced);
     renderer.table.material.emissiveIntensity = puzzles.states[w.place].solved ? .05 : .6;
 }
