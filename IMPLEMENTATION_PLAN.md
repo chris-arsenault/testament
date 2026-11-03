@@ -289,3 +289,9 @@ Version 11 is published from `38ab4b3e25db645af2cb58131885477f19187728`; deploym
 Completed three parallel reviews and integrated their fixes: physical architecture and actors, interaction/input/audio feedback, and seven deeper puzzle mechanisms. Shared support and collision now include furniture, bridge and resident bodies; followers detour without orbiting the player's gaze. Tables use connected mechanisms, geometric clues, action feedback and reversible moves. Audio generation moves to a worker; caption and modal transitions are explicit.
 
 Strict compilation and all 111 automated checks pass. Browser review verified every table layout, two complete puzzle solves, small-screen layouts, recruitment/orders, pause recovery, doorway seams and bridge height. The detailed defect/correction ledger, architecture and limits are in docs/POLISH_PASS.md; publication is recorded in docs/RELEASE.md.
+
+### 2026-11-03 — Continuity and scene polish
+
+Completed fresh subagent reviews of puzzle sessions, world continuity and scene geometry. Integrated durable undo/redo, keyboard navigation, fixed clue anchors, replayable canticles, terrain-conforming marks and shadows, local angel-eye closure, slab head clearance, legacy save recovery, and safe transitions out of angel descent. Added background audio suspension, bounded paused rendering, live motion preference handling, graphics recovery and compact landscape layouts.
+
+Strict compilation and all 134 automated checks pass. Browser acceptance covers reloaded puzzle journals, sliding focus/navigation, portrait and landscape glyph boards, complete crypt reward/replay, real context loss/restoration at entry and during play, and ground-level entrance recovery from descent. Detailed evidence and limits are in docs/CONTINUITY_PASS.md. Publication is recorded in docs/RELEASE.md.

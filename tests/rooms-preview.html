@@ -1,10 +1,10 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#151d22"><title>TESTAMENT — The Cathedral Remembers</title><link rel="stylesheet" href="cathedral.css"><link rel="stylesheet" href="puzzle-polish.css"><link rel="stylesheet" href="interaction-polish.css"><style>#qa{position:fixed;z-index:4;top:65px;left:10px;width:440px;max-width:90vw;background:#10171dea;color:#eee;padding:10px;font:10px monospace}#qa button{font:10px monospace;padding:5px;margin:2px}#qaReport{max-height:140px;overflow:auto}</style></head><body>
-<canvas id="world" aria-label="The cathedral"></canvas><div class="grain" aria-hidden="true"></div><div class="frame" aria-hidden="true"></div>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#151d22"><title>TESTAMENT — The Cathedral Remembers</title><link rel="stylesheet" href="cathedral.css"><link rel="stylesheet" href="puzzle-polish.css"><link rel="stylesheet" href="interaction-polish.css"><link rel="stylesheet" href="runtime-polish.css"><style>#qa{position:fixed;z-index:4;top:65px;left:10px;width:440px;max-width:90vw;background:#10171dea;color:#eee;padding:10px;font:10px monospace}#qa button{font:10px monospace;padding:5px;margin:2px}#qaReport{max-height:140px;overflow:auto}</style></head><body>
+<canvas id="world" tabindex="0" aria-label="The cathedral"></canvas><div class="grain" aria-hidden="true"></div><div class="frame" aria-hidden="true"></div>
 <header><span>TESTAMENT</span><span id="location">THE CATHEDRAL REMEMBERS</span><button id="menuButton" aria-label="Open pause menu">Ⅱ</button></header>
-<main id="veil"><div class="eyebrow">A PLACE BEFORE AND AFTER</div><h1>TESTAMENT</h1><p class="subtitle">The cathedral remembers.</p><p class="invitation">There was a garden here.<br>Something has built a church around its sleep.</p><button id="enter" class="primary">ENTER</button><p class="fine">Headphones welcome. Your place will be remembered.</p></main>
+<main id="veil"><div class="eyebrow">A PLACE BEFORE AND AFTER</div><h1>TESTAMENT</h1><p class="subtitle">The cathedral remembers.</p><p class="invitation">There was a garden here.<br>Something has built a church around its sleep.</p><button id="enter" class="primary">ENTER</button><p class="fine">Headphones welcome. Your place will be remembered.</p><p id="entryGraphicsStatus" class="fine" role="status"></p><button id="entryGraphicsReload" class="hidden">RELOAD</button></main>
 <section id="roomCard" aria-hidden="true" aria-live="polite" aria-atomic="true"><div class="room-kicker" id="roomKicker"></div><h2 id="roomTitle"></h2><div class="room-rule"></div><p id="roomDetail"></p><span id="roomRecord"></span></section><div id="castCard" aria-hidden="true"><small id="castRole"></small><strong id="castName"></strong><span id="castDetail"></span></div><div id="narrator" aria-hidden="true" role="status" aria-live="polite" aria-atomic="true"><span class="voice">THE VOICE / SOURCE UNLOCATED</span><blockquote id="verseText"></blockquote><cite id="verseReference"></cite></div><div class="letterbox top" aria-hidden="true"></div><div class="letterbox bottom" aria-hidden="true"></div><div id="blink" aria-hidden="true"></div><div id="reticle" aria-hidden="true">·</div><div id="caption" role="status" aria-live="polite"></div><div id="soundCaption"></div>
 <footer id="controls"><span>WASD · WALK &nbsp; <span id="lookHint">CLICK TO CAPTURE MOUSE · ARROWS TO LOOK</span> &nbsp; LEFT CLICK · EXAMINE &nbsp; R · WALK / STOP</span><span>1–3 · CALL / SEND A COMPANION HOME &nbsp; ESC · RELEASE / PAUSE</span></footer>
-<dialog id="menu"><div class="eyebrow">IN THE SILENCE</div><h2 id="menuHeading">The cathedral waits.</h2><div class="settings"><label>Volume <input id="volume" type="range" min="0" max="100" value="65"></label></div><div class="actions"><button id="resume" class="primary">RETURN</button><button id="home">Find the entrance</button><button id="new">Forget this place</button></div><p class="fine"><a href="sources.html" target="_blank" rel="noopener">Image &amp; scripture credits</a></p><p id="storageNote" class="fine"></p></dialog>
+<dialog id="menu"><div class="eyebrow">IN THE SILENCE</div><h2 id="menuHeading">The cathedral waits.</h2><div class="settings"><label>Volume <input id="volume" type="range" min="0" max="100" value="65"></label></div><div class="actions"><button id="resume" class="primary">RETURN</button><button id="home">Find the entrance</button><button id="new">Forget this place</button></div><p class="fine"><a href="sources.html" target="_blank" rel="noopener">Image &amp; scripture credits</a></p><p id="storageNote" class="fine"></p><p id="graphicsStatus" class="fine" role="status"></p><button id="graphicsReload" class="hidden">RELOAD</button></dialog>
 <div id="touch"><button data-key="KeyW" aria-label="Walk forward">↑</button><div><button data-key="KeyA" aria-label="Walk left">←</button><button data-key="KeyS" aria-label="Walk back">↓</button><button data-key="KeyD" aria-label="Walk right">→</button></div><div><button data-companion="0">1</button><button data-companion="1">2</button><button data-companion="2">3</button></div></div>
 
 <button id="puzzleUse" class="hidden">THE TABLE</button>
@@ -12,6 +12,7 @@
 <dialog id="encounter" aria-labelledby="encounterName"><div class="eyebrow">ONE WHO REMEMBERS</div><h2 id="encounterName" tabindex="-1"></h2><p id="encounterBody"></p><blockquote id="encounterLine"></blockquote><div id="encounterChoices"></div><div class="puzzle-actions"><button id="encounterLeave">GO IN PEACE</button></div></dialog>
 <script type="module">import {rooms,homes,floorHeight,places} from '/app/rooms.js';
 import { EncounterUI } from '/app/encounter-ui.js';
+import { FramePacer } from '/app/runtime.js';
 import { EventCaptions, InteractionFeedback, soundDescription } from '/app/interaction-feedback.js';
 import { menuTongue } from '/app/languages.js';
 import { witnessEffects } from '/app/witnesses.js';
@@ -21,7 +22,7 @@ import { captureMouse, lookDelta, volumeMix, LookContact } from '/app/look.js';
 import { Narrator, roomRecords } from '/app/narrative.js';
 import { Cathedral } from '/app/rendering.js';
 import { Sound } from '/app/audio.js';
-import { initial, restore, tick, walk, separate, touchAngel, updateWaiting } from '/app/world.js';
+import { initial, restore, tick, walk, separate, touchAngel, updateWaiting, returnToEntrance } from '/app/world.js';
 import { witnesses } from '/app/content.js';
 const $ = (id) => document.getElementById(id);
 const canvas = $('world'), menu = $('menu');
@@ -44,7 +45,8 @@ const narrator = new Narrator();
 let roomTime = 0, castTime = 0;
 const audio = new Sound(), keys = new Set(), contact = new LookContact(), captions = new EventCaptions(), feedback = new InteractionFeedback();
 let active = false, started = false, last = performance.now(), saveTime = 0, soundTime = 0, autoWalk = false, lastSpace = w.place, lastTurns = w.turns, lastLetterRead = '';
-const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const motionPreference = matchMedia('(prefers-reduced-motion: reduce)'), pacer = new FramePacer();
+let reduced = motionPreference.matches, graphicsLost = false;
 let volume = 65;
 try {
     const stored = localStorage.getItem('testament-room-preview-volume');
@@ -87,9 +89,31 @@ function suspend(duckEffects = true) { active = false; interruptAttention(w); so
 function continueWorld(lock) { if (!lock) {
     pause();
     return;
-} active = started; keys.clear(); audio.pause(false); document.body.classList.remove('in-overlay'); last = performance.now(); capture(); }
+} if (graphicsLost)
+    return; active = started; keys.clear(); audio.pause(false); document.body.classList.remove('in-overlay'); clearGraphicsNotice(); pacer.invalidate(); last = performance.now(); if (active)
+    canvas.focus({ preventScroll: true }); capture(); }
 const puzzles = new PuzzleUI(() => w, audio.effects, () => suspend(false), continueWorld, reduced, 'testament-room-preview-tables');
 const encounters = new EncounterUI(() => w, save, suspend, continueWorld, id => feedback.command(witnesses.find(p => p.id === id).name, 'called'));
+motionPreference.addEventListener('change', e => { reduced = e.matches; document.body.classList.toggle('quiet', reduced); puzzles.setReduced(reduced); pacer.invalidate(); });
+addEventListener('resize', () => pacer.invalidate());
+function clearGraphicsNotice() { for (const id of ['graphicsStatus', 'entryGraphicsStatus'])
+    $(id).textContent = ''; for (const id of ['graphicsReload', 'entryGraphicsReload'])
+    $(id).classList.add('hidden'); }
+canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); graphicsLost = true; audio.visibility(true); if (puzzles.isOpen)
+    puzzles.close(false);
+else if (encounters.isOpen)
+    encounters.close(false);
+else if (started)
+    pause(); keys.clear(); autoWalk = false; save(); puzzles.save(); for (const id of ['graphicsStatus', 'entryGraphicsStatus'])
+    $(id).textContent = 'The graphics connection was interrupted. Waiting for the image to return.'; for (const id of ['enter', 'resume', 'home', 'new'])
+    $(id).disabled = true; for (const id of ['graphicsReload', 'entryGraphicsReload'])
+    $(id).classList.remove('hidden'); });
+canvas.addEventListener('webglcontextrestored', () => { graphicsLost = false; pacer.invalidate(); last = performance.now(); audio.visibility(document.hidden); for (const id of ['graphicsStatus', 'entryGraphicsStatus'])
+    $(id).textContent = 'The image has returned.'; for (const id of ['enter', 'resume', 'home', 'new'])
+    $(id).disabled = false; for (const id of ['graphicsReload', 'entryGraphicsReload'])
+    $(id).classList.add('hidden'); });
+for (const id of ['graphicsReload', 'entryGraphicsReload'])
+    $(id).onclick = () => { save(); puzzles.save(); location.reload(); };
 function interact(point) { if (!active)
     return false; const target = renderer.interaction(w, point); if (!target)
     return false; if (target.kind === 'witness') {
@@ -125,12 +149,15 @@ catch {
 function language() { const t = menuTongue(w.tongue); $('menuHeading').textContent = t.heading; $('resume').textContent = t.resume; $('home').textContent = t.home; $('new').textContent = resetArmed ? t.confirm : t.forget; document.getElementById('menuHeading').lang = ['en', 'fr', 'pt'][w.tongue]; }
 function pause() { if (menu.open || puzzles.isOpen || encounters.isOpen)
     return; suspend(); language(); menu.showModal(); menu.tabIndex = -1; menu.focus(); menu.scrollTop = 0; save(); }
-function resume() { menu.close(); resetArmed = false; continueWorld(true); }
-$('enter').onclick = () => { started = true; active = true; capture(); $('veil').classList.add('hidden'); document.body.classList.remove('in-overlay'); audio.start(); applyVolume(); enterRoom(); };
+function resume() { if (graphicsLost)
+    return; menu.close(); resetArmed = false; continueWorld(true); }
+$('enter').onclick = () => { if (graphicsLost)
+    return; started = true; active = true; canvas.focus({ preventScroll: true }); capture(); $('veil').classList.add('hidden'); document.body.classList.remove('in-overlay'); clearGraphicsNotice(); pacer.invalidate(); audio.start(); applyVolume(); enterRoom(); };
 $('menuButton').onclick = pause;
 $('resume').onclick = () => resume();
 menu.addEventListener('cancel', e => e.preventDefault());
-$('home').onclick = () => { w.place = 'nave'; w.x = 0; w.y = 0; w.vy = 0; w.z = 12; w.yaw = 0; interruptAttention(w); w.pitch = 0; w.cooldown = 2; save(); resume(); };
+$('home').onclick = () => { if (graphicsLost)
+    return; returnToEntrance(w); save(); resume(); };
 let resetArmed = false;
 $('new').onclick = () => { if (!resetArmed) {
     resetArmed = true;
@@ -153,8 +180,12 @@ addEventListener('keydown', e => { if (puzzles.isOpen || encounters.isOpen)
 addEventListener('keyup', e => keys.delete(e.code));
 addEventListener('blur', () => { if (active)
     pause(); });
-document.addEventListener('visibilitychange', () => { if (document.hidden && active)
-    pause(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) {
+    if (active)
+        pause();
+    save();
+    puzzles.save();
+} audio.visibility(document.hidden || graphicsLost); last = performance.now(); pacer.invalidate(); });
 canvas.onpointerleave = () => { if (softLook) {
     softLook = false;
     canvas.style.cursor = '';
@@ -189,6 +220,10 @@ document.querySelectorAll('[data-companion]').forEach(b => b.onclick = () => com
 let hoverTime = 0;
 function frame(now) {
     requestAnimationFrame(frame);
+    if (document.hidden || graphicsLost) {
+        last = now;
+        return;
+    }
     const dt = Math.min(.05, (now - last) / 1000);
     last = now;
     puzzles.update(dt);
@@ -261,8 +296,9 @@ function frame(now) {
     }
     detectArrival();
     $('location').textContent = roomRecords[w.place].title;
-    renderer.draw(w, active ? dt : 0, reduced);
     renderer.table.material.emissiveIntensity = puzzles.states[w.place].solved ? .05 : .6;
+    if (pacer.draw(now, active, document.hidden, graphicsLost))
+        renderer.draw(w, active ? dt : 0, reduced);
     // Hit testing follows movement and the rendered camera, never the previous frame.
     hoverTime -= dt;
     if (hoverTime <= 0) {
@@ -279,7 +315,7 @@ requestAnimationFrame(frame);
 addEventListener('pagehide', () => { save(); puzzles.save(); });
 
 const qa=document.createElement('aside');qa.id='qa';qa.innerHTML='<b>LOCAL ROOM REVIEW · NOT PUBLISHED</b><div id="qaRooms"></div><div id="qaPeople"></div><button id="qaThrone">Philip with throne claim</button><button id="qaTable">Approach table</button><button id="qaLeft">Face left door</button><button id="qaRight">Face right door</button><button id="qaDeck">Bridge approach</button><button id="qaStep">Walk forward one metre</button><button id="qaOrder">Order first companion</button><button id="qaReset">Fresh review</button><button id="qaHide">Hide review</button><pre id="qaReport"></pre>';document.body.append(qa);
-function ready(place){menu.close();encounters.dialog.close();puzzles.dialog.close();w.place=place;Object.assign(w,rooms[place].spawn,{y:0,yaw:0,pitch:.1,vy:0,skin:true,stable:true,cooldown:1.3});w.y=floorHeight(place,w.x,w.z);w.angel=place==='garden'?1:0;w.events=[];roomTime=0;castTime=0;started=true;active=true;$('veil').classList.add('hidden');renderer.draw(w,0,false);}
+function ready(place){menu.close();encounters.dialog.close();puzzles.dialog.close();w.underworld=0;w.angelContact=false;w.place=place;Object.assign(w,rooms[place].spawn,{y:0,yaw:0,pitch:.1,vy:0,skin:true,stable:true,cooldown:1.3});w.y=floorHeight(place,w.x,w.z);w.angel=place==='garden'?1:0;w.events=[];roomTime=0;castTime=0;started=true;active=true;$('veil').classList.add('hidden');renderer.draw(w,0,false);}
 for(const place of places){const b=document.createElement('button');b.textContent=place;b.onclick=()=>{audio.start();applyVolume();ready(place);};$('qaRooms').append(b);}
 function person(id){const h=homes[id];ready(h.place);w.x=h.x;w.z=h.z+3;w.y=floorHeight(w.place,w.x,w.z);w.pitch=-.1;renderer.draw(w,0,false);}
 for(const p of witnesses){const b=document.createElement('button');b.textContent=p.name;b.onclick=()=>person(p.id);$('qaPeople').append(b);}
@@ -292,6 +328,9 @@ $('qaStep').onclick=()=>walk(w,-Math.sin(w.yaw),-Math.cos(w.yaw));
 $('qaOrder').onclick=()=>command(0);
 $('qaReset').onclick=()=>{w=initial();puzzles.reset();ready('nave');};
 $('qaHide').onclick=()=>qa.style.display='none';
-setInterval(()=>$('qaReport').textContent=JSON.stringify({room:w.place,party:w.party,waiting:w.waitSpots,position:[w.x,w.y,w.z],calls:renderer.renderer.info.render.calls,triangles:renderer.renderer.info.render.triangles,target:renderer.interaction(w)},null,1),500);
+const contextReview=document.createElement('button');contextReview.textContent='Interrupt graphics';contextReview.onclick=()=>{renderer.renderer.forceContextLoss();setTimeout(()=>renderer.renderer.forceContextRestore(),3500);};qa.insertBefore(contextReview,$('qaReport'));
+const entryReview=document.createElement('button');entryReview.textContent='Interrupt entry graphics';entryReview.onclick=()=>{suspend();started=false;menu.close();$('veil').classList.remove('hidden');renderer.renderer.forceContextLoss();setTimeout(()=>renderer.renderer.forceContextRestore(),3500);};qa.insertBefore(entryReview,$('qaReport'));
+const descentReview=document.createElement('button');descentReview.textContent='Enter angel descent';descentReview.onclick=()=>{ready('garden');Object.assign(w,{x:0,z:-7,angel:1,angelCooldown:0});touchAngel(w);};qa.insertBefore(descentReview,$('qaReport'));
+setInterval(()=>$('qaReport').textContent=JSON.stringify({room:w.place,party:w.party,waiting:w.waitSpots,position:[w.x,w.y,w.z],descent:w.underworld,renderFrame:renderer.renderer.info.render.frame,audio:audio.music.ctx?.state,calls:renderer.renderer.info.render.calls,triangles:renderer.renderer.info.render.triangles,target:renderer.interaction(w)},null,1),500);
 ready('nave');
 </script></body></html>

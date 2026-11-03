@@ -1,7 +1,7 @@
 import {formationPoint,newActor,advanceActor,turnToward,type ActorMotion} from './actor-motion.js';
 import {WitnessVisuals} from './witness-visuals.js';
-import {columnModel,portalModel,roseModel,windowModel,throneModel,tableModel,catModel,discipleModel,angelModel,gardenModel} from './models.js';
-import {batch,box as carvedBox,archBand,tube,lathe} from './modeling.js';
+import {columnModel,portalModel,roseModel,windowModel,throneModel,tableModel,catModel,discipleModel,angelModel,gardenModel,setEyeAperture} from './models.js';
+import {batch,box as carvedBox,archBand,tube,lathe,groundShadows} from './modeling.js';
 import {witnesses,type Witness} from './content.js';
 import {rooms,homes,floorHeight,roomPoint,columnHeight} from './rooms.js';
 import {RoomScenery,onTerrain} from './room-scenery.js';
@@ -14,7 +14,7 @@ import * as T from '../three.module.js';
 import {present,throneVisible,type World} from './world.js';
 export class Cathedral {
  followHeading=0;lastPlayer={x:0,z:12};catMotion:ActorMotion|null=null;
- figures:Record<string,any>={};residents:Record<string,any>={};centralEye:any;roomScenery!:RoomScenery;tableGroup:any;relicRoot:any;gardenRoots:any;
+ figures:Record<string,any>={};residents:Record<string,any>={};centralEye:any;roomScenery!:RoomScenery;tableGroup:any;relicRoot:any;gardenRoots:any;gardenScar:any;
  effects:WitnessVisuals;columnMats:any[]=[];copies:any[]=[];pupils:any;burial:any;scar:any;table:any; relics:Relics; scene:any; camera:any; renderer:any; root:any; cat:any; angel:any; eyes:any; wings:any; water:any; bridge:any; screen:any; roots:any; ceiling:any; throne:any; low:any; companions:any[]=[];letter:any;light:any; rose:any;dust:any; clock=0;lastPlace='';materials:any[]=[];
  constructor(canvas:HTMLCanvasElement){
   this.renderer=new T.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));this.renderer.setSize(innerWidth,innerHeight);this.renderer.outputColorSpace=T.SRGBColorSpace;this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.15;
@@ -37,6 +37,7 @@ export class Cathedral {
   this.roots=returningRoots();this.root.add(this.roots);this.gardenRoots=returningRoots();onTerrain(this.gardenRoots);this.root.add(this.gardenRoots);
   this.burial=new T.Group();this.root.add(this.burial);const earth=this.mat('#332c29');this.box(0,-7.25,0,28,.5,36,earth,this.burial);for(const x of [-7,7])for(const z of [-10,0,10]){this.mesh(new T.CylinderGeometry(.95,.7,7,10),earth,x,-3.5,z,this.burial);this.box(x,-6.8,z,2.2,.4,2.2,gold,this.burial);}for(const z of [-10,0,10])this.mesh(new T.TorusGeometry(7,.25,8,48,Math.PI),earth,0,-7,z,this.burial);const burialLight=new T.PointLight(0x9f7352,50,28);burialLight.position.set(0,-4,-5);this.burial.add(burialLight);for(const z of [-13,-17]){for(const x of [-3.6,3.6])this.mesh(new T.CylinderGeometry(.48,.72,5.7,10),earth,x,-4.15,z,this.burial);this.mesh(new T.TorusGeometry(3.6,.18,8,48,Math.PI),earth,0,-5.2,z,this.burial);}this.box(0,-3.5,-18,14,7,.5,earth,this.burial);const sepulchralLight=new T.PointLight(0xc68b62,55,20);sepulchralLight.position.set(0,-3.4,-12);this.burial.add(sepulchralLight);for(const x of [-2.7,0,2.7]){this.box(x,-4.5,-17.72,1.2,3,.1,this.mat('#0b0908'),this.burial);this.ring(.5,.035,gold,x,-2.8,-17.6,this.burial);}
   this.scar=this.ring(2.5,.045,this.mat('#4f382e',.7),0,.045,-8);this.scar.rotation.x=-Math.PI/2;
+  this.gardenScar=this.scar.clone();onTerrain(this.gardenScar);this.root.add(this.gardenScar);
   this.throne=throneModel(stone,gold,dark);this.root.add(this.throne);
   this.cat=catModel();this.root.add(this.cat);
   const angel=angelModel();this.angel=angel.root;this.wings=angel.wings;this.eyes=angel.eyes;this.pupils=angel.pupils;this.centralEye=angel.center;this.angel.position.set(0,3.7,-8);this.root.add(this.angel);
@@ -69,12 +70,12 @@ export class Cathedral {
   this.relicRoot.visible=w.place==='nave';this.relics.update(w);this.clock+=dt;const t=this.clock;this.roomScenery.show(w,t,reduced);this.root.getObjectByName('bushes').visible=w.place==='garden';const tablePoint=rooms[w.place].table;this.tableGroup.position.set(tablePoint.x,floorHeight(w.place,tablePoint.x,tablePoint.z),tablePoint.z);
 
   const changedRoom=this.lastPlace!==w.place;const travel=Math.hypot(w.x-this.lastPlayer.x,w.z-this.lastPlayer.z);if(changedRoom)this.followHeading=w.yaw;else if(travel>.006)this.followHeading=turnToward(this.followHeading,Math.atan2(-(w.x-this.lastPlayer.x),-(w.z-this.lastPlayer.z)),Math.min(1,dt*8));this.lastPlayer={x:w.x,z:w.z};
-  const height=w.y;const depth=w.underworld>0?6.4*Math.min(1,(9-w.underworld)/1.2,w.underworld/2):0;this.burial.visible=depth>0;this.scar.visible=w.buried&&(w.place==='garden'||w.place==='crypt');const lowHeight=manifestation(w,'alphaeus')?witnessBodyHeight(w):w.place==='nave'&&w.passage&&w.x>8&&w.z<-8?.85:1.7;this.camera.position.set(w.x,lowHeight+height-(reduced&&depth>0?6.4:depth),w.z);this.camera.rotation.set(w.pitch,w.yaw,0);
+  const height=w.y;const depth=w.underworld>0?6.4*Math.min(1,(9-w.underworld)/1.2,w.underworld/2):0;this.burial.visible=depth>0;this.scar.visible=w.buried&&w.place==='crypt';this.gardenScar.visible=w.buried&&w.place==='garden';const lowHeight=manifestation(w,'alphaeus')?witnessBodyHeight(w):w.place==='nave'&&w.passage&&w.x>8&&w.z<-8?.85:1.7;this.camera.position.set(w.x,lowHeight+height-(reduced&&depth>0?6.4:depth),w.z);this.camera.rotation.set(w.pitch,w.yaw,0);
   this.water.visible=w.place==='water'||w.memory>2;this.water.position.y=w.place==='water'?(witnessVisual(w,'matthew')?12:.08):13+Math.sin(t*.1)*.2;
   this.dust.rotation.y=reduced?0:Math.sin(t*.03)*.15;this.dust.material.opacity=.2+w.attention*.025;
   this.bridge.visible=w.place==='water'&&w.bridge;this.screen.visible=w.place==='nave'&&!w.skin&&!w.stable;this.roots.visible=w.roots&&w.place==='nave';this.gardenRoots.visible=w.place==='garden';this.throne.visible=w.place==='crypt'&&throneVisible(w);this.low.scale.y=witnessVisual(w,'alphaeus')?1.8:1;this.low.visible=w.passage&&w.place==='nave';this.letter.visible=w.place==='crypt';
-  this.angel.visible=w.place==='garden'&&w.angel>.12;this.angel.scale.setScalar(Math.max(.01,w.angel));this.angel.position.y=(w.underworld>0?-1:3.7)+(reduced?0:Math.sin(t*.3)*.3);this.angel.rotation.x=w.underworld>0?Math.PI:0;this.eyes.scale.y=this.pupils.scale.y=w.underworld>0?.04:witnessVisual(w,'john')?.08:1;this.eyes.rotation.y=this.pupils.rotation.y=reduced?0:t*.055;this.wings.rotation.z=reduced?0:Math.sin(t*.12)*.12;
-  this.centralEye.scale.y=this.eyes.scale.y;
+  this.angel.visible=w.place==='garden'&&w.angel>.12;this.angel.scale.setScalar(Math.max(.01,w.angel));this.angel.position.y=(w.underworld>0?-1:3.7)+(reduced?0:Math.sin(t*.3)*.3);this.angel.rotation.x=w.underworld>0?Math.PI:0;const aperture=w.underworld>0?.04:witnessVisual(w,'john')?.08:1;setEyeAperture(this.eyes,aperture);setEyeAperture(this.pupils,aperture);this.eyes.rotation.y=this.pupils.rotation.y=reduced?0:t*.055;this.wings.rotation.z=reduced?0:Math.sin(t*.12)*.12;
+  this.centralEye.scale.y=aperture;
   const color=rooms[w.place].sky;this.scene.background.set(depth>0?'#0a0706':color);this.scene.fog.color.set(depth>0?'#0a0706':color);this.scene.fog.density=depth>0?.048:.019;this.light.color.set(rooms[w.place].light);
   let cx=5,cz=-5;if(w.catPhase===2){cx=5+Math.min(1,w.catTimer/3)*5;cz=-5-Math.min(1,w.catTimer/3)*6;}else if(w.catPhase===3){cx=10;cz=-11;}
   if(w.place!=='nave'){cx=w.x-Math.sin(this.followHeading)*2.8+Math.cos(this.followHeading)*1.3;cz=w.z-Math.cos(this.followHeading)*2.8-Math.sin(this.followHeading)*1.3;}
@@ -94,6 +95,7 @@ export class Cathedral {
   });this.lastPlace=w.place;
   for(const {id} of witnesses){const h=homes[id],g=this.residents[id];g.visible=!w.party.includes(id)&&h.place===w.place;g.position.set(h.x,floorHeight(h.place,h.x,h.z),h.z);g.rotation.y=h.yaw;}
   const copies=catCopies(w);this.copies.forEach((copy,i)=>{copy.visible=!!witnessVisual(w,'andrew');if(copy.visible){const p=actorPlacement(w,copies[i].x,copies[i].z,Infinity,.3,.95);copy.position.set(p.x,p.y+.03,p.z);copy.rotation.y=i*.9;}});
+  const surface=(x:number,z:number,maximum:number)=>groundAt(w,x,z,maximum);for(const actor of [this.cat,...this.copies,...this.companions,...Object.values(this.residents)])if(actor.visible)groundShadows(actor,surface);
   this.effects.update(w,reduced);
   this.renderer.render(this.scene,this.camera);
  }

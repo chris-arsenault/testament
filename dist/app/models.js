@@ -403,6 +403,31 @@ export function angelModel() {
     focus.name = 'central-eye';
     return { root, wings, eyes, pupils, center: focus };
 }
+// Close each outward-facing eye around its own center. Scaling the instanced
+// cloud's parent would squash all thousand eye positions into a single plane.
+export function setEyeAperture(root, amount) {
+    amount = Math.max(.025, Math.min(1, amount));
+    root.traverse((m) => {
+        if (!m.isInstancedMesh || m.userData.eyeAperture === amount || m.userData.eyeAperture === undefined && amount === 1)
+            return;
+        let shape = m.userData.eyeShape;
+        if (!shape || shape.owner !== m.uuid) {
+            m.geometry = m.geometry.clone();
+            shape = m.userData.eyeShape = { owner: m.uuid, positions: shape?.positions ?? Array.from(m.geometry.attributes.position.array), normals: shape?.normals ?? Array.from(m.geometry.attributes.normal.array) };
+        }
+        const positions = m.geometry.attributes.position, normals = m.geometry.attributes.normal;
+        for (let i = 0; i < positions.count; i++) {
+            positions.setY(i, shape.positions[i * 3 + 1] * amount);
+            const x = shape.normals[i * 3], y = shape.normals[i * 3 + 1] / amount, z = shape.normals[i * 3 + 2], length = Math.hypot(x, y, z) || 1;
+            normals.setXYZ(i, x / length, y / length, z / length);
+        }
+        positions.needsUpdate = normals.needsUpdate = true;
+        m.geometry.computeBoundingSphere();
+        m.geometry.computeBoundingBox();
+        m.boundingBox = m.boundingSphere = null;
+        m.userData.eyeAperture = amount;
+    });
+}
 export function gardenModel() {
     const g = new T.Group(), stem = material('#3d4939'), leafMat = material('#526447', .12, .85);
     leafMat.side = T.DoubleSide;

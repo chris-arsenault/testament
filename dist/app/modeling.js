@@ -117,8 +117,71 @@ export function contactShadow(rx, rz, opacity = .28) {
         contactTexture = new T.DataTexture(data, 64, 64);
         contactTexture.needsUpdate = true;
     }
-    const m = new T.Mesh(new T.PlaneGeometry(rx * 2, rz * 2), new T.MeshBasicMaterial({ color: '#081014', map: contactTexture, transparent: true, opacity, depthWrite: false }));
+    const m = new T.Mesh(new T.PlaneGeometry(rx * 2, rz * 2, 6, 6), new T.MeshBasicMaterial({ color: '#081014', map: contactTexture, transparent: true, opacity, depthWrite: false }));
     m.rotation.x = -Math.PI / 2;
     m.position.y = .022;
+    m.userData.contactShadow = true;
     return m;
+}
+// Displace static details in world space, including translated/rotated children.
+// Copies own their displaced geometry; the source model stays reusable elsewhere.
+export function drapeTerrain(root, height) {
+    root.updateWorldMatrix(true, true);
+    root.traverse((m) => {
+        if (!m.isMesh)
+            return;
+        const inverse = m.matrixWorld.clone().invert();
+        if (m.isInstancedMesh) {
+            const matrix = new T.Matrix4(), p = new T.Vector3();
+            for (let i = 0; i < m.count; i++) {
+                m.getMatrixAt(i, matrix);
+                matrix.premultiply(m.matrixWorld);
+                p.setFromMatrixPosition(matrix);
+                matrix.elements[13] += height(p.x, p.z);
+                matrix.premultiply(inverse);
+                m.setMatrixAt(i, matrix);
+            }
+            m.instanceMatrix.needsUpdate = true;
+            m.boundingBox = m.boundingSphere = null;
+        }
+        else {
+            const geometry = m.geometry.clone();
+            geometry.applyMatrix4(m.matrixWorld);
+            const p = geometry.attributes.position;
+            for (let i = 0; i < p.count; i++)
+                p.setY(i, p.getY(i) + height(p.getX(i), p.getZ(i)));
+            geometry.applyMatrix4(inverse);
+            geometry.computeVertexNormals();
+            geometry.computeBoundingSphere();
+            m.geometry = geometry;
+        }
+    });
+    return root;
+}
+// Contact cards follow the actual support beneath every vertex. Each actor gets
+// its own mutable card while continuing to share the expensive sculpted model.
+export function groundShadows(root, surface) {
+    root.updateWorldMatrix(true, true);
+    root.traverse((shadow) => {
+        if (!shadow.userData.contactShadow)
+            return;
+        let state = shadow.userData.shadowSurface;
+        if (!state || state.owner !== shadow.uuid) {
+            shadow.geometry = shadow.geometry.clone();
+            shadow.material = shadow.material.clone();
+            shadow.geometry.attributes.position.setUsage(T.DynamicDrawUsage);
+            state = shadow.userData.shadowSurface = { owner: shadow.uuid, flat: state?.flat ?? Array.from(shadow.geometry.attributes.position.array), opacity: state?.opacity ?? shadow.material.opacity };
+        }
+        const positions = shadow.geometry.attributes.position, inverse = shadow.matrixWorld.clone().invert(), point = new T.Vector3(), center = new T.Vector3().setFromMatrixPosition(shadow.matrixWorld), height = surface(center.x, center.z, center.y + .06);
+        shadow.material.opacity = state.opacity / (1 + Math.max(0, center.y - height - .022) ** 2 * 2);
+        for (let i = 0; i < positions.count; i++) {
+            point.set(state.flat[i * 3], state.flat[i * 3 + 1], state.flat[i * 3 + 2]).applyMatrix4(shadow.matrixWorld);
+            point.y = surface(point.x, point.z, center.y + .06) + .018;
+            point.applyMatrix4(inverse);
+            positions.setXYZ(i, point.x, point.y, point.z);
+        }
+        positions.needsUpdate = true;
+        shadow.geometry.boundingBox = null;
+        shadow.geometry.computeBoundingSphere();
+    });
 }

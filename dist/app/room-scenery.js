@@ -1,6 +1,6 @@
 import * as T from '../three.module.js';
 import { rooms, homes, insideRoom, floorHeight, columnHeight, gardenPiers, portalScale } from './rooms.js';
-import { material, mesh, box, lathe, tube, ring, batch, archBand, vane } from './modeling.js';
+import { material, mesh, box, lathe, tube, ring, batch, archBand, vane, drapeTerrain } from './modeling.js';
 import { columnModel, portalModel, portalSurround, roseModel, windowModel } from './models.js';
 import { stairs } from './space.js';
 const flat = (g, m, x, y, z, sx, sz) => { const p = mesh(g, new T.PlaneGeometry(sx, sz), m, x, y, z); p.rotation.x = -Math.PI / 2; return p; };
@@ -49,26 +49,7 @@ export function groundGeometry(place) {
     g.computeVertexNormals();
     return g;
 }
-export function onTerrain(root) { root.traverse((m) => { if (!m.isMesh)
-    return; if (m.isInstancedMesh) {
-    const matrix = new T.Matrix4(), p = new T.Vector3(), q = new T.Quaternion(), s = new T.Vector3();
-    for (let i = 0; i < m.count; i++) {
-        m.getMatrixAt(i, matrix);
-        matrix.decompose(p, q, s);
-        p.y += floorHeight('garden', p.x, p.z);
-        matrix.compose(p, q, s);
-        m.setMatrixAt(i, matrix);
-    }
-    m.instanceMatrix.needsUpdate = true;
-}
-else {
-    m.geometry = m.geometry.clone();
-    const p = m.geometry.attributes.position;
-    for (let i = 0; i < p.count; i++)
-        p.setY(i, p.getY(i) + floorHeight('garden', p.getX(i), p.getZ(i)));
-    m.geometry.computeVertexNormals();
-    m.geometry.computeBoundingSphere();
-} }); }
+export function onTerrain(root) { return drapeTerrain(root, (x, z) => floorHeight('garden', x, z)); }
 export class RoomScenery {
     parent;
     columnMats;
@@ -265,12 +246,15 @@ export class RoomScenery {
         for (const [index, [id, home]] of Object.entries(homes).entries()) {
             if (home.place !== place)
                 continue;
-            const y = floorHeight(place, home.x, home.z);
-            ring(solid, gold, .72, .022, home.x, y + .025, home.z).rotation.x = -Math.PI / 2;
+            const y = floorHeight(place, home.x, home.z), seal = new T.Group();
+            solid.add(seal);
+            ring(seal, gold, .72, .022, home.x, .025, home.z).rotation.x = -Math.PI / 2;
             for (let i = 0; i <= index; i++) {
                 const a = i * Math.PI * 2 / (index + 1);
-                box(solid, gold, home.x + Math.sin(a) * .86, y + .025, home.z + Math.cos(a) * .86, .05, .02, .13, .006).rotation.y = a;
+                box(seal, gold, home.x + Math.sin(a) * .86, .025, home.z + Math.cos(a) * .86, .05, .02, .13, .006).rotation.y = a;
             }
+            if (place === 'garden')
+                onTerrain(seal);
             const lamp = mesh(solid, new T.OctahedronGeometry(.095), light, home.x + .65, y + 2.2, home.z + .15);
             lamp.name = 'home-' + id;
         }

@@ -75,7 +75,17 @@ export function cross(w:World,door:'front'|'left'|'right'|'low'){
  if(from==='stair'&&door==='front'){w.turns++;w.memory++;if(!w.anchored)w.reality=w.turns%3;emit(w,'ascent',whispers.ascent[(w.turns-1)%3]);}
  else if(from==='stair'&&door==='left'){w.memory=Math.max(0,w.memory-1);emit(w,'descent',whispers.descent);}
  else {w.returns++;if(w.returns>1)emit(w,'return',whispers.return);}
- w.place=to;const arrival=judas?roomPoint(to,judas.x,judas.z+2):rooms[to].spawn;w.x=arrival.x;w.z=arrival.z;w.y=groundAt(w,w.x,w.z,judas?judas.y+.34:Infinity);w.vy=0;w.yaw=judas?Math.PI:0;if(judas)w.manifestations.judas!.remaining=0;w.still=0;interruptAttention(w);w.cooldown=1.3;w.letter=(w.letter+1+w.left.length)%12;return true;
+ const arrival=judas?roomPoint(to,judas.x,judas.z+2):rooms[to].spawn;arrive(w,to,arrival,judas?Math.PI:0,judas?judas.y+.34:Infinity);if(judas)w.manifestations.judas!.remaining=0;w.letter=(w.letter+1+w.left.length)%12;return true;
+}
+// An impossible threshold can change the destination, but must still leave the
+// body in that destination rather than carrying the previous room's descent.
+function arrive(w:World,place:Place,point:{x:number;z:number},yaw:number,maximum=Infinity){
+ w.place=place;const safe=actorPlacement(w,point.x,point.z,maximum,.16,1.7);w.x=safe.x;w.y=safe.y;w.z=safe.z;w.vy=0;w.yaw=yaw;w.still=0;w.underworld=0;w.angelInside=false;w.angelCooldown=0;w.anchored=!!manifestation(w,'peter');interruptAttention(w);w.cooldown=1.3;
+}
+export function returnToEntrance(w:World){
+ // This is recovery, not a new world. Keep discoveries, party, throne claims,
+ // puzzle storage, language and completed cat history; discard transient poses.
+ w.manifestations={};w.events=[];if(w.catPhase<3)w.catPhase=0;w.catTimer=0;arrive(w,'nave',rooms.nave.spawn,0);w.pitch=0;w.cooldown=2;
 }
 export function walk(w:World,dx:number,dz:number,carried=false){
  const stride=carried?1:witnessStride(w);dx*=stride;dz*=stride;
@@ -98,8 +108,9 @@ export function restore(raw:string|null):World{
  const safe=roomPoint(base.place,Math.max(-30,Math.min(30,base.x)),Math.max(-30,Math.min(30,base.z)),1);base.x=safe.x;base.z=safe.z;
  base.tongue=((Math.trunc(base.tongue)%3)+3)%3;base.pitch=Math.max(-1.2,Math.min(1.2,base.pitch));base.angel=Math.max(0,Math.min(1,base.angel));base.reality=((Math.trunc(base.reality)%3)+3)%3;
  select(base,Array.isArray(s.party)?s.party:initial().party);base.left=Array.isArray(s.left)?[...new Set<Witness>(s.left.filter((x:Witness)=>base.party.includes(x)))]:[];base.seen=Array.isArray(s.seen)?s.seen.filter((x:unknown)=>typeof x==='string').slice(0,200):[];
- base.waiting={};base.waitSpots={};for(const id of base.left){const saved=s.waitSpots?.[id],valid=saved&&['x','y','z','alone'].every(k=>Number.isFinite(saved[k])),enthroned=valid&&saved.place==='crypt'&&!!saved.enthroned,home=homes[id],place=enthroned?'crypt':home.place;
-  base.waiting[id]=place;base.waitSpots[id]={place,x:enthroned?Math.max(-.9,Math.min(.9,saved.x)):home.x,z:enthroned?-8.8:home.z,y:enthroned?1.4:support(place,home.x,home.z),enthroned,alone:enthroned?Math.max(0,Math.min(1000,saved.alone)):0,refusalAt:-10};}
+ base.waiting={};base.waitSpots={};const occupiedSeats=new Set<number>();for(const id of base.left){const saved=s.waitSpots?.[id],valid=saved&&['x','y','z','alone'].every(k=>Number.isFinite(saved[k])),enthroned=valid&&saved.place==='crypt'&&!!saved.enthroned,home=homes[id],place=enthroned?'crypt':home.place;
+  const seat=enthroned?[0,-.85,.85].filter(x=>!occupiedSeats.has(x)).sort((a,b)=>Math.abs(a-saved.x)-Math.abs(b-saved.x))[0]:undefined;if(seat!==undefined)occupiedSeats.add(seat);
+  base.waiting[id]=place;base.waitSpots[id]={place,x:seat??home.x,z:enthroned?-8.8:home.z,y:enthroned?1.4:support(place,home.x,home.z),enthroned,alone:enthroned?Math.max(0,Math.min(1000,saved.alone)):0,refusalAt:-10};}
  base.y=groundAt(base,base.x,base.z,Number.isFinite(s.y)?Math.max(0,Math.min(8.1,s.y))+.05:Infinity);base.vy=0;interruptAttention(base);base.underworld=0;base.angelInside=false;base.angelCooldown=0;base.cooldown=1;settleWitnessBody(base,true);return base;
  }catch{return base;}
 }

@@ -1,6 +1,7 @@
 import { WitnessAudio } from './witness-audio.js';
 import { whoomp } from './resonance.js';
 import { Score } from '../score.js';
+import { audioVisibility } from './runtime.js';
 export class Sound {
     witnesses = new WitnessAudio();
     music = new Score();
@@ -9,6 +10,7 @@ export class Sound {
     lastAmbient = 0;
     lastAnswer = -10;
     lastSeal = -10;
+    hidden = false;
     start() { this.music.start(); this.effects.start(); this.music.setVolume(.45); this.effects.setVolume(.65); }
     update(w) { if (this.music.filter)
         this.music.filter.frequency.setTargetAtTime(w.underworld > 0 ? 260 : 20000, this.music.ctx.currentTime, .3); const stage = w.place === 'garden' ? (w.angel > .3 ? 3 : 6) : w.place === 'crypt' ? 4 : w.place === 'scriptorium' ? 5 : w.place === 'choir' ? 6 : w.place === 'water' ? 1 : w.place === 'stair' ? w.turns % 3 : 2; this.music.movement(stage); if (w.distance < this.lastStep)
@@ -66,8 +68,7 @@ export class Sound {
             this.effects.cue('seal');
         }
     } }
-    pause(v, duckEffects = v) { this.music.setPaused(v); this.effects.setPaused(duckEffects); if (!v) {
-        this.music.ctx?.resume()?.catch(() => { });
-        this.effects.ctx?.resume()?.catch(() => { });
-    } }
+    visibility(hidden) { this.hidden = hidden; audioVisibility([this.music, this.effects], hidden); }
+    pause(v, duckEffects = v) { this.music.setPaused(v); this.effects.setPaused(duckEffects); if (!v && !this.hidden)
+        audioVisibility([this.music, this.effects], false); }
 }

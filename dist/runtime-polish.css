@@ -1,0 +1,14 @@
+/* Screen edges, short windows and focus are part of the playable surface. */
+#world:focus{outline:none}
+#entryGraphicsStatus:empty,#graphicsStatus:empty{display:none}
+button:disabled{cursor:default}
+#menu button:disabled,#enter:disabled{opacity:.45}
+header{padding-top:max(24px,env(safe-area-inset-top));padding-left:max(32px,env(safe-area-inset-left));padding-right:max(32px,env(safe-area-inset-right))}
+footer{bottom:max(20px,env(safe-area-inset-bottom))}
+#touch{left:max(20px,env(safe-area-inset-left));bottom:max(20px,env(safe-area-inset-bottom))}
+#puzzleUse{right:max(24px,env(safe-area-inset-right));bottom:max(74px,calc(env(safe-area-inset-bottom) + 24px))}
+#veil .fine{max-width:420px}
+@media(pointer:coarse){#soundCaption{bottom:25px;left:160px;width:calc(100% - 180px);padding-right:12px}#caption{bottom:25%;width:min(600px,88%)}#narrator{bottom:40%}#puzzleUse{bottom:max(32px,calc(env(safe-area-inset-bottom) + 20px));max-width:45vw}}
+@media(max-width:650px){header{padding: max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) 16px max(16px,env(safe-area-inset-left))}#companionSignal strong{white-space:normal}#companionSignal{max-width:90vw;width:max-content}}
+@media(max-height:540px){#veil{overflow:auto;justify-content:flex-start;padding-top:20px;padding-bottom:24px}#veil h1{font-size:clamp(42px,12vh,68px);margin-top:8px}#veil .subtitle{font-size:19px;margin-bottom:10px}#veil .invitation{margin:6px 0 14px;line-height:1.5}#veil .fine{margin:12px 0 0}#roomCard{top:25%;padding-top:10px;padding-bottom:10px}#roomCard h2{font-size:clamp(24px,7vh,36px);margin:8px 0}.room-rule{margin:10px 0}#narrator{bottom:28%;max-width:65vw;padding:6px}#verseText{font-size:18px;margin:6px 0}#castCard{top:20%}#castName{font-size:19px}#caption{font-size:18px;bottom:13%;max-width:60vw}#soundCaption{bottom:8%}.cinematic .letterbox{height:16px}#touch button{padding:9px 13px}#touch{bottom:max(12px,env(safe-area-inset-bottom))}#companionSignal{top:14%;padding:10px 24px}#companionSignal strong{font-size:19px}}
+@media(prefers-reduced-motion:reduce){#blink,#controls{transition:none!important}}

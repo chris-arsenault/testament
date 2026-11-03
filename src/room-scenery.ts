@@ -1,7 +1,7 @@
 import * as T from '../three.module.js';
 import {rooms,homes,insideRoom,floorHeight,columnHeight,gardenPiers,portalScale,type Place,type Portal} from './rooms.js';
 import type {World} from './world.js';
-import {material,mesh,box,lathe,tube,ring,batch,archBand,vane} from './modeling.js';
+import {material,mesh,box,lathe,tube,ring,batch,archBand,vane,drapeTerrain} from './modeling.js';
 import {columnModel,portalModel,portalSurround,roseModel,windowModel} from './models.js';
 import {stairs} from './space.js';
 type View={root:any;ceiling:any;rose:any};
@@ -19,7 +19,7 @@ export function groundGeometry(place:Place){
  for(let i=0;i<p.count;i++){const x=p.getX(i),z=p.getZ(i),h=floorHeight(place,x,z);p.setY(i,h);const c=new T.Color().setHSL(.22+.025*Math.sin(x*.7),.23,.23+h*.045);colors.push(c.r,c.g,c.b);}
  const old=g.index.array;for(let i=0;i<old.length;i+=3){const a=old[i],b=old[i+1],c=old[i+2];if(insideRoom(place,(p.getX(a)+p.getX(b)+p.getX(c))/3,(p.getZ(a)+p.getZ(b)+p.getZ(c))/3))indices.push(a,b,c);}g.setIndex(indices);g.setAttribute('color',new T.Float32BufferAttribute(colors,3));g.computeVertexNormals();return g;
 }
-export function onTerrain(root:any){root.traverse((m:any)=>{if(!m.isMesh)return;if(m.isInstancedMesh){const matrix=new T.Matrix4(),p=new T.Vector3(),q=new T.Quaternion(),s=new T.Vector3();for(let i=0;i<m.count;i++){m.getMatrixAt(i,matrix);matrix.decompose(p,q,s);p.y+=floorHeight('garden',p.x,p.z);matrix.compose(p,q,s);m.setMatrixAt(i,matrix);}m.instanceMatrix.needsUpdate=true;}else{m.geometry=m.geometry.clone();const p=m.geometry.attributes.position;for(let i=0;i<p.count;i++)p.setY(i,p.getY(i)+floorHeight('garden',p.getX(i),p.getZ(i)));m.geometry.computeVertexNormals();m.geometry.computeBoundingSphere();}});}
+export function onTerrain(root:any){return drapeTerrain(root,(x,z)=>floorHeight('garden',x,z));}
 export class RoomScenery {
  views:Partial<Record<Place,View>>={};
  constructor(private parent:any,private columnMats:any[]){}
@@ -79,7 +79,7 @@ export class RoomScenery {
    for(let i=0;i<28;i++){const a=i*Math.PI/14,h=3+(i%7)*.45;mesh(ceiling,new T.CylinderGeometry(.16,.16,h,12),gold,Math.sin(a)*4.6,21-h/2,Math.cos(a)*4.6);}
    for(const radius of [3.8,5.2])ring(ceiling,gold,radius,.09,0,19,0).rotation.x=Math.PI/2;
   }
-  for(const [index,[id,home]] of Object.entries(homes).entries()){if(home.place!==place)continue;const y=floorHeight(place,home.x,home.z);ring(solid,gold,.72,.022,home.x,y+.025,home.z).rotation.x=-Math.PI/2;for(let i=0;i<=index;i++){const a=i*Math.PI*2/(index+1);box(solid,gold,home.x+Math.sin(a)*.86,y+.025,home.z+Math.cos(a)*.86,.05,.02,.13,.006).rotation.y=a;}const lamp=mesh(solid,new T.OctahedronGeometry(.095),light,home.x+.65,y+2.2,home.z+.15);lamp.name='home-'+id;}
+  for(const [index,[id,home]] of Object.entries(homes).entries()){if(home.place!==place)continue;const y=floorHeight(place,home.x,home.z),seal=new T.Group();solid.add(seal);ring(seal,gold,.72,.022,home.x,.025,home.z).rotation.x=-Math.PI/2;for(let i=0;i<=index;i++){const a=i*Math.PI*2/(index+1);box(seal,gold,home.x+Math.sin(a)*.86,.025,home.z+Math.cos(a)*.86,.05,.02,.13,.006).rotation.y=a;}if(place==='garden')onTerrain(seal);const lamp=mesh(solid,new T.OctahedronGeometry(.095),light,home.x+.65,y+2.2,home.z+.15);lamp.name='home-'+id;}
   batch(solid);batch(ceiling);
   if(place==='garden'){
    const grassMat=material('#637449',0,.94);grassMat.side=T.DoubleSide;const grass=new T.InstancedMesh(vane(.34,.034,.08),grassMat,2100),dummy=new T.Object3D();let count=0;

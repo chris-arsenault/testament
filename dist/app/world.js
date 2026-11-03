@@ -225,20 +225,42 @@ export function cross(w, door) {
         if (w.returns > 1)
             emit(w, 'return', whispers.return);
     }
-    w.place = to;
     const arrival = judas ? roomPoint(to, judas.x, judas.z + 2) : rooms[to].spawn;
-    w.x = arrival.x;
-    w.z = arrival.z;
-    w.y = groundAt(w, w.x, w.z, judas ? judas.y + .34 : Infinity);
-    w.vy = 0;
-    w.yaw = judas ? Math.PI : 0;
+    arrive(w, to, arrival, judas ? Math.PI : 0, judas ? judas.y + .34 : Infinity);
     if (judas)
         w.manifestations.judas.remaining = 0;
-    w.still = 0;
-    interruptAttention(w);
-    w.cooldown = 1.3;
     w.letter = (w.letter + 1 + w.left.length) % 12;
     return true;
+}
+// An impossible threshold can change the destination, but must still leave the
+// body in that destination rather than carrying the previous room's descent.
+function arrive(w, place, point, yaw, maximum = Infinity) {
+    w.place = place;
+    const safe = actorPlacement(w, point.x, point.z, maximum, .16, 1.7);
+    w.x = safe.x;
+    w.y = safe.y;
+    w.z = safe.z;
+    w.vy = 0;
+    w.yaw = yaw;
+    w.still = 0;
+    w.underworld = 0;
+    w.angelInside = false;
+    w.angelCooldown = 0;
+    w.anchored = !!manifestation(w, 'peter');
+    interruptAttention(w);
+    w.cooldown = 1.3;
+}
+export function returnToEntrance(w) {
+    // This is recovery, not a new world. Keep discoveries, party, throne claims,
+    // puzzle storage, language and completed cat history; discard transient poses.
+    w.manifestations = {};
+    w.events = [];
+    if (w.catPhase < 3)
+        w.catPhase = 0;
+    w.catTimer = 0;
+    arrive(w, 'nave', rooms.nave.spawn, 0);
+    w.pitch = 0;
+    w.cooldown = 2;
 }
 export function walk(w, dx, dz, carried = false) {
     const stride = carried ? 1 : witnessStride(w);
@@ -297,10 +319,14 @@ export function restore(raw) {
         base.seen = Array.isArray(s.seen) ? s.seen.filter((x) => typeof x === 'string').slice(0, 200) : [];
         base.waiting = {};
         base.waitSpots = {};
+        const occupiedSeats = new Set();
         for (const id of base.left) {
             const saved = s.waitSpots?.[id], valid = saved && ['x', 'y', 'z', 'alone'].every(k => Number.isFinite(saved[k])), enthroned = valid && saved.place === 'crypt' && !!saved.enthroned, home = homes[id], place = enthroned ? 'crypt' : home.place;
+            const seat = enthroned ? [0, -.85, .85].filter(x => !occupiedSeats.has(x)).sort((a, b) => Math.abs(a - saved.x) - Math.abs(b - saved.x))[0] : undefined;
+            if (seat !== undefined)
+                occupiedSeats.add(seat);
             base.waiting[id] = place;
-            base.waitSpots[id] = { place, x: enthroned ? Math.max(-.9, Math.min(.9, saved.x)) : home.x, z: enthroned ? -8.8 : home.z, y: enthroned ? 1.4 : support(place, home.x, home.z), enthroned, alone: enthroned ? Math.max(0, Math.min(1000, saved.alone)) : 0, refusalAt: -10 };
+            base.waitSpots[id] = { place, x: seat ?? home.x, z: enthroned ? -8.8 : home.z, y: enthroned ? 1.4 : support(place, home.x, home.z), enthroned, alone: enthroned ? Math.max(0, Math.min(1000, saved.alone)) : 0, refusalAt: -10 };
         }
         base.y = groundAt(base, base.x, base.z, Number.isFinite(s.y) ? Math.max(0, Math.min(8.1, s.y)) + .05 : Infinity);
         base.vy = 0;

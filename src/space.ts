@@ -30,7 +30,7 @@ export function obstructed(w:World,x:number,z:number,y=w.y,radius=.16,bodyHeight
   if(y<2.53&&Math.abs(Math.abs(x)-1.43)<.23+radius&&z>-10.15-radius&&z<-8+radius)return true;
  }
  if(w.place==='nave'&&!w.skin&&!w.stable&&Math.abs(x)<3&&Math.abs(z+2)<.55&&y<4)return true;
- if(w.place==='stair')for(const top of surfaces('stair',x,z))if(top>y+.34&&top-.3<y+bodyHeight-.05)return true;
+ if(w.place==='stair')for(const step of stairs)if(Math.abs(x-step.x)<=step.width/2+radius&&Math.abs(z-step.z)<=step.depth/2+radius&&step.y>y+.34&&step.y-.3<y+bodyHeight-.05)return true;
  return false;
 }
 // Actors share the player's solid geometry. Search near the intended formation point,
@@ -40,7 +40,9 @@ export function actorPlacement(w:World,x:number,z:number,maximum=w.y+.34,radius=
  const candidate=(px:number,pz:number)=>{if(!insideRoom(w.place,px,pz,radius+.1))return;const y=groundAt(w,px,pz,maximum);if(!obstructed(w,px,pz,y,radius,bodyHeight))return {x:px,y,z:pz};};
  const direct=candidate(desired.x,desired.z);if(direct)return direct;
  for(let ring=1;ring<=14;ring++)for(let i=0;i<24;i++){const a=i*Math.PI/12,p=candidate(desired.x+Math.sin(a)*ring*.25,desired.z+Math.cos(a)*ring*.25);if(p)return p;}
- return candidate(w.x,w.z)??{x:w.x,y:w.y,z:w.z};
+ // A restored body can be farther from safe ground than the local search radius
+ // (the middle of the unbridged pool, for example). Do not return it still stuck.
+ const spawn=rooms[w.place].spawn;return candidate(w.x,w.z)??candidate(spawn.x,spawn.z)??{x:w.x,y:w.y,z:w.z};
 }
 export function traceActor(w:World,from:Point,to:Point,maxStep=.34,radius=.38,bodyHeight=1.9):Point{
  const count=Math.max(1,Math.ceil(Math.hypot(to.x-from.x,to.z-from.z)/.12)),dx=(to.x-from.x)/count,dz=(to.z-from.z)/count,actor={...w,...from};let p={...from};
@@ -64,9 +66,19 @@ export function occludesSegment(w:World,from:Point,to:Point,ignore?:'table'){
   }
  }return false;
 }
+export function overheadAt(w:World,x:number,z:number,head:number,radius=.16){
+ const undersides:number[]=[];
+ if(w.place==='stair')for(const s of stairs)if(Math.abs(x-s.x)<=s.width/2+radius&&Math.abs(z-s.z)<=s.depth/2+radius)undersides.push(s.y-.3);
+ const ledge=manifestation(w,'thomas');if(ledge&&Math.abs(x-ledge.x)<=2+radius&&Math.abs(z-ledge.z)<=2+radius)undersides.push(ledge.y-.23);
+ const table=rooms[w.place].table;if(Math.abs(x-table.x)<=tableBounds.halfWidth+radius&&Math.abs(z-table.z)<=tableBounds.halfWidth+radius)undersides.push(floorHeight(w.place,table.x,table.z)+.87);
+ if(!w.ceiling&&(w.place==='water'||w.place==='crypt'||w.place==='choir'&&Math.hypot(x,z)>3.8))undersides.push(rooms[w.place].height);
+ return Math.min(Infinity,...undersides.filter(y=>y>=head-.025));
+}
 export function stepSupport(w:World,dt:number){
  const ground=groundAt(w,w.x,w.z,w.y+.02);if(w.y<=ground+.025&&w.vy<=0){w.y=ground;w.vy=0;return;}
- w.vy-=witnessGravity(w)*dt;const next=w.y+w.vy*dt;if(next<=ground){w.y=ground;w.vy=0;}else w.y=next;
+ const height=witnessBodyHeight(w),ceiling=overheadAt(w,w.x,w.z,w.y+height);w.vy-=witnessGravity(w)*dt;let next=w.y+w.vy*dt;
+ if(w.vy>0&&next+height>ceiling-.015){next=Math.max(w.y,ceiling-height-.015);w.vy=0;}
+ if(next<=ground){w.y=ground;w.vy=0;}else w.y=next;
 }
 export function settleWitnessBody(w:World,restoring=false){
  const phase=w.manifestations.bartholomew;if((restoring||phase?.ended&&phase.place===w.place)&&w.y<columnHeight(w.place))for(const {x:px,z:pz} of rooms[w.place].columns){const r=Math.hypot(w.x-px,w.z-pz);if(r<1.16){const dx=r?(w.x-px)/r:1,dz=r?(w.z-pz)/r:0;w.x=px+dx*1.22;w.z=pz+dz*1.22;}}

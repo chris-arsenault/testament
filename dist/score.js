@@ -25,7 +25,7 @@ export function composeMovement(stage,sampleRate=22050,duration=32){
 }
 export class Score {
  constructor(){this.ctx=null;this.volume=.55;this.muted=false;this.paused=false;this.stage=-1;this.current=null;this.cache=new Map();this.beatAt=0;this.worker=null;this.pending=new Set();this.workerFailed=false;this.workerTimer=null;}
- start(){try{if(!this.ctx){this.ctx=new (globalThis.AudioContext||globalThis.webkitAudioContext)();this.master=this.ctx.createGain();const compressor=this.ctx.createDynamicsCompressor();compressor.threshold.value=-12;compressor.ratio.value=5;this.filter=this.ctx.createBiquadFilter();this.filter.type='lowpass';this.filter.frequency.value=20000;this.master.connect(this.filter);this.filter.connect(compressor);compressor.connect(this.ctx.destination);this.applyVolume();}this.ctx.resume();return true;}catch{return false;}}
+ start(){try{if(!this.ctx){this.ctx=new (globalThis.AudioContext||globalThis.webkitAudioContext)();this.master=this.ctx.createGain();const compressor=this.ctx.createDynamicsCompressor();compressor.threshold.value=-12;compressor.ratio.value=5;this.filter=this.ctx.createBiquadFilter();this.filter.type='lowpass';this.filter.frequency.value=20000;this.master.connect(this.filter);this.filter.connect(compressor);compressor.connect(this.ctx.destination);this.applyVolume();}this.ctx.resume()?.catch(()=>{});return true;}catch{return false;}}
  applyVolume(){if(this.master)this.master.gain.setTargetAtTime(this.muted?0:this.volume*(this.paused?.35:1),this.ctx.currentTime,.12);}
  setVolume(value){this.volume=Math.max(0,Math.min(1,value));this.applyVolume();}
  setMuted(value){this.muted=value;this.applyVolume();}

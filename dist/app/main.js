@@ -1,4 +1,5 @@
 import { EncounterUI } from './encounter-ui.js';
+import { FramePacer } from './runtime.js';
 import { EventCaptions, InteractionFeedback, soundDescription } from './interaction-feedback.js';
 import { menuTongue } from './languages.js';
 import { witnessEffects } from './witnesses.js';
@@ -8,7 +9,7 @@ import { captureMouse, lookDelta, volumeMix, LookContact } from './look.js';
 import { Narrator, roomRecords } from './narrative.js';
 import { Cathedral } from './rendering.js';
 import { Sound } from './audio.js';
-import { initial, restore, tick, walk, separate, touchAngel, updateWaiting } from './world.js';
+import { initial, restore, tick, walk, separate, touchAngel, updateWaiting, returnToEntrance } from './world.js';
 import { witnesses } from './content.js';
 const $ = (id) => document.getElementById(id);
 const canvas = $('world'), menu = $('menu');
@@ -31,7 +32,8 @@ const narrator = new Narrator();
 let roomTime = 0, castTime = 0;
 const audio = new Sound(), keys = new Set(), contact = new LookContact(), captions = new EventCaptions(), feedback = new InteractionFeedback();
 let active = false, started = false, last = performance.now(), saveTime = 0, soundTime = 0, autoWalk = false, lastSpace = w.place, lastTurns = w.turns, lastLetterRead = '';
-const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const motionPreference = matchMedia('(prefers-reduced-motion: reduce)'), pacer = new FramePacer();
+let reduced = motionPreference.matches, graphicsLost = false;
 let volume = 65;
 try {
     const stored = localStorage.getItem('testament-volume');
@@ -74,9 +76,31 @@ function suspend(duckEffects = true) { active = false; interruptAttention(w); so
 function continueWorld(lock) { if (!lock) {
     pause();
     return;
-} active = started; keys.clear(); audio.pause(false); document.body.classList.remove('in-overlay'); last = performance.now(); capture(); }
+} if (graphicsLost)
+    return; active = started; keys.clear(); audio.pause(false); document.body.classList.remove('in-overlay'); clearGraphicsNotice(); pacer.invalidate(); last = performance.now(); if (active)
+    canvas.focus({ preventScroll: true }); capture(); }
 const puzzles = new PuzzleUI(() => w, audio.effects, () => suspend(false), continueWorld, reduced);
 const encounters = new EncounterUI(() => w, save, suspend, continueWorld, id => feedback.command(witnesses.find(p => p.id === id).name, 'called'));
+motionPreference.addEventListener('change', e => { reduced = e.matches; document.body.classList.toggle('quiet', reduced); puzzles.setReduced(reduced); pacer.invalidate(); });
+addEventListener('resize', () => pacer.invalidate());
+function clearGraphicsNotice() { for (const id of ['graphicsStatus', 'entryGraphicsStatus'])
+    $(id).textContent = ''; for (const id of ['graphicsReload', 'entryGraphicsReload'])
+    $(id).classList.add('hidden'); }
+canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); graphicsLost = true; audio.visibility(true); if (puzzles.isOpen)
+    puzzles.close(false);
+else if (encounters.isOpen)
+    encounters.close(false);
+else if (started)
+    pause(); keys.clear(); autoWalk = false; save(); puzzles.save(); for (const id of ['graphicsStatus', 'entryGraphicsStatus'])
+    $(id).textContent = 'The graphics connection was interrupted. Waiting for the image to return.'; for (const id of ['enter', 'resume', 'home', 'new'])
+    $(id).disabled = true; for (const id of ['graphicsReload', 'entryGraphicsReload'])
+    $(id).classList.remove('hidden'); });
+canvas.addEventListener('webglcontextrestored', () => { graphicsLost = false; pacer.invalidate(); last = performance.now(); audio.visibility(document.hidden); for (const id of ['graphicsStatus', 'entryGraphicsStatus'])
+    $(id).textContent = 'The image has returned.'; for (const id of ['enter', 'resume', 'home', 'new'])
+    $(id).disabled = false; for (const id of ['graphicsReload', 'entryGraphicsReload'])
+    $(id).classList.add('hidden'); });
+for (const id of ['graphicsReload', 'entryGraphicsReload'])
+    $(id).onclick = () => { save(); puzzles.save(); location.reload(); };
 function interact(point) { if (!active)
     return false; const target = renderer.interaction(w, point); if (!target)
     return false; if (target.kind === 'witness') {
@@ -112,12 +136,15 @@ catch {
 function language() { const t = menuTongue(w.tongue); $('menuHeading').textContent = t.heading; $('resume').textContent = t.resume; $('home').textContent = t.home; $('new').textContent = resetArmed ? t.confirm : t.forget; document.getElementById('menuHeading').lang = ['en', 'fr', 'pt'][w.tongue]; }
 function pause() { if (menu.open || puzzles.isOpen || encounters.isOpen)
     return; suspend(); language(); menu.showModal(); menu.tabIndex = -1; menu.focus(); menu.scrollTop = 0; save(); }
-function resume() { menu.close(); resetArmed = false; continueWorld(true); }
-$('enter').onclick = () => { started = true; active = true; capture(); $('veil').classList.add('hidden'); document.body.classList.remove('in-overlay'); audio.start(); applyVolume(); enterRoom(); };
+function resume() { if (graphicsLost)
+    return; menu.close(); resetArmed = false; continueWorld(true); }
+$('enter').onclick = () => { if (graphicsLost)
+    return; started = true; active = true; canvas.focus({ preventScroll: true }); capture(); $('veil').classList.add('hidden'); document.body.classList.remove('in-overlay'); clearGraphicsNotice(); pacer.invalidate(); audio.start(); applyVolume(); enterRoom(); };
 $('menuButton').onclick = pause;
 $('resume').onclick = () => resume();
 menu.addEventListener('cancel', e => e.preventDefault());
-$('home').onclick = () => { w.place = 'nave'; w.x = 0; w.y = 0; w.vy = 0; w.z = 12; w.yaw = 0; interruptAttention(w); w.pitch = 0; w.cooldown = 2; save(); resume(); };
+$('home').onclick = () => { if (graphicsLost)
+    return; returnToEntrance(w); save(); resume(); };
 let resetArmed = false;
 $('new').onclick = () => { if (!resetArmed) {
     resetArmed = true;
@@ -140,8 +167,12 @@ addEventListener('keydown', e => { if (puzzles.isOpen || encounters.isOpen)
 addEventListener('keyup', e => keys.delete(e.code));
 addEventListener('blur', () => { if (active)
     pause(); });
-document.addEventListener('visibilitychange', () => { if (document.hidden && active)
-    pause(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) {
+    if (active)
+        pause();
+    save();
+    puzzles.save();
+} audio.visibility(document.hidden || graphicsLost); last = performance.now(); pacer.invalidate(); });
 canvas.onpointerleave = () => { if (softLook) {
     softLook = false;
     canvas.style.cursor = '';
@@ -176,6 +207,10 @@ document.querySelectorAll('[data-companion]').forEach(b => b.onclick = () => com
 let hoverTime = 0;
 function frame(now) {
     requestAnimationFrame(frame);
+    if (document.hidden || graphicsLost) {
+        last = now;
+        return;
+    }
     const dt = Math.min(.05, (now - last) / 1000);
     last = now;
     puzzles.update(dt);
@@ -248,8 +283,9 @@ function frame(now) {
     }
     detectArrival();
     $('location').textContent = roomRecords[w.place].title;
-    renderer.draw(w, active ? dt : 0, reduced);
     renderer.table.material.emissiveIntensity = puzzles.states[w.place].solved ? .05 : .6;
+    if (pacer.draw(now, active, document.hidden, graphicsLost))
+        renderer.draw(w, active ? dt : 0, reduced);
     // Hit testing follows movement and the rendered camera, never the previous frame.
     hoverTime -= dt;
     if (hoverTime <= 0) {

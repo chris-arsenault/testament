@@ -141,6 +141,16 @@ export function angelModel(){
  return {root,wings,eyes,pupils,center:focus};
 }
 
+// Close each outward-facing eye around its own center. Scaling the instanced
+// cloud's parent would squash all thousand eye positions into a single plane.
+export function setEyeAperture(root:any,amount:number){
+ amount=Math.max(.025,Math.min(1,amount));root.traverse((m:any)=>{if(!m.isInstancedMesh||m.userData.eyeAperture===amount||m.userData.eyeAperture===undefined&&amount===1)return;
+  let shape=m.userData.eyeShape;if(!shape||shape.owner!==m.uuid){m.geometry=m.geometry.clone();shape=m.userData.eyeShape={owner:m.uuid,positions:shape?.positions??Array.from(m.geometry.attributes.position.array),normals:shape?.normals??Array.from(m.geometry.attributes.normal.array)};}
+  const positions=m.geometry.attributes.position,normals=m.geometry.attributes.normal;for(let i=0;i<positions.count;i++){positions.setY(i,shape.positions[i*3+1]*amount);const x=shape.normals[i*3],y=shape.normals[i*3+1]/amount,z=shape.normals[i*3+2],length=Math.hypot(x,y,z)||1;normals.setXYZ(i,x/length,y/length,z/length);}
+  positions.needsUpdate=normals.needsUpdate=true;m.geometry.computeBoundingSphere();m.geometry.computeBoundingBox();m.boundingBox=m.boundingSphere=null;m.userData.eyeAperture=amount;
+ });
+}
+
 export function gardenModel(){
  const g=new T.Group(),stem=material('#3d4939'),leafMat=material('#526447',.12,.85);leafMat.side=T.DoubleSide;const leaves=new T.InstancedMesh(vane(.55,.105,.11),leafMat,560),dummy=new T.Object3D();let count=0;
  for(let i=0;i<35;i++){const a=i*2.399,r=Math.sqrt(i)*.6,x=Math.sin(a)*r,z=Math.cos(a)*r-8,h=.5+(i%5)*.17;for(let b=0;b<2;b++){const angle=a+b*2;const ex=x+Math.cos(angle)*.45,ez=z+Math.sin(angle)*.45;tube(g,stem,[[x,0,z],[x,.3,z],[ex,h,ez]],.018,10,5);for(let j=0;j<8;j++){const t=.22+j*.1;dummy.position.set(x+(ex-x)*t,.15+(h-.15)*t,z+(ez-z)*t);dummy.rotation.set(.5+(j%3)*.35,angle+j*2.4,-.55+(j%2)*1.1);dummy.scale.setScalar(.65+(i%3)*.16);dummy.updateMatrix();leaves.setMatrixAt(count++,dummy.matrix);}}}

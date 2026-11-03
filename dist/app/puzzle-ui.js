@@ -6,6 +6,7 @@ import { witnesses } from './content.js';
 import { discipleWhispers } from './whispers.js';
 import { PuzzleAudio } from './puzzle-audio.js';
 import { rooms, floorHeight } from './rooms.js';
+import { newJournal, restoreJournal, recordPuzzleMove, revisePuzzle, puzzleFocusTarget, focusAfterPuzzleMove } from './puzzle-session.js';
 const $ = (id) => document.getElementById(id);
 const numerals = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV'];
 const svgNS = 'http://www.w3.org/2000/svg';
@@ -23,10 +24,15 @@ export class PuzzleUI {
     sound;
     nextWhisper = 0;
     saveClock = 0;
-    history = [];
+    journals;
+    echoJournal = newJournal();
     undoButton = document.createElement('button');
+    redoButton = document.createElement('button');
+    listenButton = document.createElement('button');
     resolving = false;
     revealTimer;
+    focus = {};
+    whisperTimers = new Set();
     constructor(world, channel, onOpen, onClose, reduced, storageKey = 'testament-tables-v1') {
         this.world = world;
         this.onOpen = onOpen;
@@ -40,48 +46,104 @@ export class PuzzleUI {
         catch { }
         this.states = Object.fromEntries(places.map(p => [p, restorePuzzle(p, saved?.[p])]));
         this.sound = new PuzzleAudio(channel);
-        this.undoButton.className = 'puzzle-undo';
-        this.undoButton.textContent = '↶';
-        this.undoButton.setAttribute('aria-label', 'Undo last movement');
-        this.undoButton.onclick = () => this.undo();
-        $('puzzleWork').append(this.undoButton);
+        this.journals = Object.fromEntries(places.map(p => [p, restoreJournal(p, this.states[p], saved?.[p]?.journal, saved?.[p]?.revision ?? 0)]));
+        const revisions = document.createElement('div');
+        revisions.className = 'puzzle-revisions';
+        for (const [button, direction, symbol] of [[this.undoButton, 'undo', '↶'], [this.redoButton, 'redo', '↷']]) {
+            button.className = 'puzzle-undo';
+            button.textContent = symbol;
+            button.setAttribute('aria-label', direction === 'undo' ? 'Undo last movement' : 'Redo last movement');
+            button.setAttribute('aria-keyshortcuts', direction === 'undo' ? 'Control+Z Meta+Z' : 'Control+Shift+Z Control+Y Meta+Shift+Z');
+            button.onclick = () => this.revise(direction);
+            revisions.append(button);
+        }
+        $('puzzleWork').append(revisions);
+        this.listenButton.className = 'puzzle-listen';
+        this.listenButton.textContent = '♫';
+        this.listenButton.setAttribute('aria-label', 'Hear the canticle');
+        this.listenButton.onclick = () => { this.sound.stop(); this.sound.canticle(); };
+        $('puzzleReward').append(this.listenButton);
+        $('puzzleBoard').setAttribute('role', 'group');
+        $('puzzleBoard').setAttribute('aria-labelledby', 'puzzleTitle');
+        this.dialog.addEventListener('keydown', e => this.keydown(e));
         $('puzzleLeave').onclick = () => this.close(true);
         this.dialog.addEventListener('cancel', e => { e.preventDefault(); this.close(false); });
+        document.addEventListener('visibilitychange', () => { if (document.hidden && this.isOpen) {
+            this.sound.stop();
+            this.clearWhispers();
+            this.save();
+            if (this.revealTimer)
+                clearTimeout(this.revealTimer);
+            this.resolving = false;
+            this.render();
+        } });
     }
     get isOpen() { return this.dialog.open; }
+    setReduced(value) { this.reduced = value; if (value) {
+        this.clearWhispers();
+        for (const animation of this.dialog.getAnimations({ subtree: true }))
+            animation.cancel();
+    } }
     near() { const w = this.world(), p = rooms[w.place].table; return Math.abs(w.y - floorHeight(w.place, p.x, p.z)) < 1.7 && Math.hypot(w.x - p.x, w.z - p.z) < 4.8; }
     open() { if (this.isOpen)
-        return; this.place = this.world().place; const debt = manifestation(this.world(), 'matthew'); this.echo = this.place === 'water' && debt && !this.states.water.solved ? borrowedLedger(this.states.water) : null; this.echoTime = this.echo ? debt.remaining : 0; this.history = []; this.resolving = false; this.onOpen(); this.nextWhisper = whisperInterval(this.states[this.place].elapsed); this.dialog.showModal(); this.dialog.scrollTop = 0; $('puzzleStatus').textContent = ''; this.render(); this.sound.gesture(this.place, 0, 0, 'open'); $('puzzleTitle').focus(); }
-    close(capture) { if (this.revealTimer)
-        clearTimeout(this.revealTimer); this.resolving = false; this.mergeEcho(); this.echo = null; this.echoTime = 0; this.history = []; this.save(); this.dialog.close(); this.sound.stop(); $('whisperRain').replaceChildren(); this.onClose(capture); }
+        return; this.place = this.world().place; const debt = manifestation(this.world(), 'matthew'); this.echo = this.place === 'water' && debt && !this.states.water.solved ? borrowedLedger(this.states.water) : null; this.echoTime = this.echo ? debt.remaining : 0; this.echoJournal = newJournal(); this.resolving = false; this.saveClock = 0; this.onOpen(); this.nextWhisper = whisperInterval(this.states[this.place].elapsed); this.dialog.showModal(); this.dialog.scrollTop = 0; $('puzzleStatus').textContent = ''; this.render(); this.sound.gesture(this.place, 0, 0, 'open'); $('puzzleTitle').focus(); }
+    close(capture) { if (!this.isOpen)
+        return; if (this.revealTimer)
+        clearTimeout(this.revealTimer); this.resolving = false; this.mergeEcho(); this.echo = null; this.echoTime = 0; this.echoJournal = newJournal(); this.save(); this.dialog.close(); this.sound.stop(); this.clearWhispers(); this.onClose(capture); }
     mergeEcho() { if (this.echo) {
         const real = this.states[this.place];
         real.elapsed = Math.max(real.elapsed, this.echo.elapsed);
         real.whispers = Math.max(real.whispers, this.echo.whispers);
     } }
     current() { return this.echo ?? this.states[this.place]; }
+    journal() { return this.echo ? this.echoJournal : this.journals[this.place]; }
+    get history() { return this.journal().undo; }
     reset() { if (this.revealTimer)
-        clearTimeout(this.revealTimer); this.resolving = false; this.history = []; this.echo = null; this.echoTime = 0; this.states = Object.fromEntries(places.map(p => [p, freshPuzzle(p)])); this.save(); }
-    save() { try {
-        localStorage.setItem(this.storageKey, JSON.stringify(this.states));
+        clearTimeout(this.revealTimer); this.resolving = false; this.echo = null; this.echoTime = 0; this.echoJournal = newJournal(); this.focus = {}; this.sound.stop(); this.clearWhispers(); this.states = Object.fromEntries(places.map(p => [p, freshPuzzle(p)])); this.journals = Object.fromEntries(places.map(p => [p, newJournal()])); this.save(); }
+    save() { this.mergeEcho(); try {
+        localStorage.setItem(this.storageKey, JSON.stringify(Object.fromEntries(places.map(p => [p, { ...this.states[p], journal: this.journals[p] }]))));
     }
     catch { } }
-    undo() { const s = this.current(), previous = this.history.pop(); if (!previous || s.solved)
-        return; s.board = previous; s.selected = null; this.render(); this.save(); this.sound.gesture(this.place, 0, 0, 'undo'); this.undoButton.focus({ preventScroll: true }); }
+    undo() { this.revise('undo'); }
+    revise(direction) { if (!revisePuzzle(this.current(), this.journal(), direction))
+        return; this.render(this.focus[this.place]); this.save(); this.sound.gesture(this.place, 0, 0, 'undo'); $('puzzleStatus').textContent = direction === 'undo' ? 'The last movement recedes.' : 'The movement returns.'; }
+    keydown(e) {
+        if (!this.isOpen || e.altKey)
+            return;
+        if ((e.ctrlKey || e.metaKey) && ['z', 'y'].includes(e.key.toLowerCase())) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.revise(e.key.toLowerCase() === 'y' || e.shiftKey ? 'redo' : 'undo');
+            return;
+        }
+        const target = e.target?.closest('#puzzleBoard button[data-index]');
+        if (!target || e.ctrlKey || e.metaKey)
+            return;
+        const buttons = Array.from($('puzzleBoard').querySelectorAll('button[data-index]:not(:disabled)')), index = Number(target.dataset.index), next = puzzleFocusTarget(this.place, index, e.key, buttons.map(b => Number(b.dataset.index)));
+        if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (next !== null) {
+                this.focus[this.place] = next;
+                for (const button of buttons)
+                    button.tabIndex = Number(button.dataset.index) === next ? 0 : -1;
+                buttons.find(b => Number(b.dataset.index) === next)?.focus();
+            }
+        }
+    }
+    clearWhispers() { for (const timer of this.whisperTimers)
+        clearTimeout(timer); this.whisperTimers.clear(); $('whisperRain').replaceChildren(); }
     move(index) {
         const s = this.current();
         if (s.solved)
             return;
         const before = [...s.board], selected = s.selected, changed = act(this.place, s, index);
-        if (changed) {
-            this.history.push(before);
-            if (this.history.length > 160)
-                this.history.shift();
-        }
+        if (changed)
+            recordPuzzleMove(this.journal(), before, s);
         const kind = changed ? 'move' : selected !== s.selected ? 'select' : 'blocked', feedback = puzzleFeedback(this.place, s.board);
         if (s.solved)
             this.resolving = true;
-        this.render(index);
+        this.render(changed ? focusAfterPuzzleMove(this.place, index, before, s.board) : index);
         this.save();
         this.sound.gesture(this.place, index, s.board[index] ?? 0, kind, feedback.matched);
         const affected = changed ? s.board.map((v, i) => v !== before[i] ? i : -1).filter(i => i >= 0) : [index];
@@ -101,13 +163,14 @@ export class PuzzleUI {
                 const from = before.indexOf(s.board[i]);
                 if (from < 0)
                     continue;
-                const dx = rects[from].left - rects[i].left, dy = rects[from].top - rects[i].top;
-                cells[i].animate(Math.abs(dx) > rects[i].width * 1.6 || Math.abs(dy) > rects[i].height * 1.6 ? [{ opacity: .25 }, { opacity: 1 }] : [{ transform: `translate(${dx}px,${dy}px)` }, { transform: 'translate(0,0)' }], { duration: 190, easing: 'ease-out' });
+                const dx = rects[from].left - rects[i].left, dy = rects[from].top - rects[i].top, ink = this.place === 'scriptorium' ? cells[i].querySelector('.moving-letter') : cells[i];
+                ink.animate(Math.abs(dx) > rects[i].width * 1.6 || Math.abs(dy) > rects[i].height * 1.6 ? [{ opacity: .25 }, { opacity: 1 }] : [{ transform: `translate(${dx}px,${dy}px)` }, { transform: 'translate(0,0)' }], { duration: 190, easing: 'ease-out' });
             }
         }
         if (s.solved) {
+            this.sound.stop();
             this.sound.canticle();
-            $('whisperRain').replaceChildren();
+            this.clearWhispers();
             $('puzzleStatus').textContent = 'The table answers.';
             this.revealTimer = setTimeout(() => { this.resolving = false; if (this.isOpen)
                 this.render(); }, this.reduced ? 200 : 850);
@@ -118,9 +181,11 @@ export class PuzzleUI {
         $('puzzleTitle').textContent = info.title;
         $('puzzleWork').classList.toggle('hidden', answered);
         $('puzzleReward').classList.toggle('hidden', !answered);
+        this.dialog.classList.toggle('has-answer', answered);
         $('puzzleVerse').textContent = '“' + info.verse + '”';
         $('puzzlePolitics').textContent = '“' + info.political + '”';
-        this.undoButton.disabled = !this.history.length || s.solved;
+        this.undoButton.disabled = !this.journal().undo.length || s.solved;
+        this.redoButton.disabled = !this.journal().redo.length || s.solved;
         const board = $('puzzleBoard');
         board.className = 'puzzle-board ' + this.place + (this.resolving ? ' table-answer' : '');
         board.style.setProperty('--resonance', String(feedback.matched));
@@ -134,15 +199,16 @@ export class PuzzleUI {
             links.setAttribute('viewBox', '0 0 100 100');
             links.classList.add('chime-threads');
             links.setAttribute('aria-hidden', 'true');
-            for (let i = 0; i < 8; i++) {
-                const a = i * Math.PI / 4 - Math.PI / 2, b = ((i + 3) % 8) * Math.PI / 4 - Math.PI / 2;
-                const line = document.createElementNS(svgNS, 'line');
-                line.setAttribute('x1', String(50 + 35 * Math.cos(a)));
-                line.setAttribute('y1', String(50 + 35 * Math.sin(a)));
-                line.setAttribute('x2', String(50 + 35 * Math.cos(b)));
-                line.setAttribute('y2', String(50 + 35 * Math.sin(b)));
-                links.append(line);
-            }
+            for (let i = 0; i < 8; i++)
+                for (const [offset, shift] of [[1, 0], [3, -.45], [3, .45]]) {
+                    const a = i * Math.PI / 4 - Math.PI / 2, b = ((i + offset) % 8) * Math.PI / 4 - Math.PI / 2, line = document.createElementNS(svgNS, 'line'), dx = Math.cos(b) - Math.cos(a), dy = Math.sin(b) - Math.sin(a), length = Math.hypot(dx, dy), sx = -dy / length * shift, sy = dx / length * shift;
+                    line.setAttribute('x1', String(50 + 35 * Math.cos(a) + sx));
+                    line.setAttribute('y1', String(50 + 35 * Math.sin(a) + sy));
+                    line.setAttribute('x2', String(50 + 35 * Math.cos(b) + sx));
+                    line.setAttribute('y2', String(50 + 35 * Math.sin(b) + sy));
+                    line.dataset.origin = String(i);
+                    links.append(line);
+                }
             board.append(links);
         }
         const symbols = ['ALEPH', 'BETH', 'GIMEL', 'DALETH', 'HE', 'WAW'];
@@ -225,8 +291,18 @@ export class PuzzleUI {
                 handle.onclick = () => this.move(i);
                 board.append(handle);
             }
-        if (focusIndex !== undefined)
-            board.querySelector(this.place === 'scriptorium' ? `.loom-handle[data-index="${focusIndex}"]` : `button[data-index="${focusIndex}"]`)?.focus({ preventScroll: true });
+        const buttons = Array.from(board.querySelectorAll('button[data-index]:not(:disabled)')), wanted = focusIndex ?? this.focus[this.place], focused = buttons.find(b => Number(b.dataset.index) === wanted) ?? buttons[0];
+        if (focused) {
+            this.focus[this.place] = Number(focused.dataset.index);
+            for (const button of buttons) {
+                button.tabIndex = button === focused ? 0 : -1;
+                button.onfocus = () => { this.focus[this.place] = Number(button.dataset.index); for (const other of buttons)
+                    other.tabIndex = other === button ? 0 : -1; for (const line of Array.from(board.querySelectorAll('.chime-threads line')))
+                    line.classList.toggle('struck', line.dataset.origin === button.dataset.index); };
+            }
+            if (focusIndex !== undefined && !document.hidden)
+                focused.focus({ preventScroll: true });
+        }
     }
     update(dt) { if (!this.isOpen || document.hidden)
         return; if (this.echo) {
@@ -237,9 +313,10 @@ export class PuzzleUI {
         if (this.echoTime <= 0) {
             this.mergeEcho();
             this.echo = null;
-            this.history = [];
-            this.render();
+            this.echoJournal = newJournal();
+            this.render(this.focus[this.place]);
             this.sound.gesture(this.place, 0, 0, 'undo');
+            this.save();
         }
     } const s = this.current(); if (s.solved)
         return; s.elapsed += dt; this.nextWhisper -= dt; this.saveClock += dt; if (this.saveClock > 5) {
@@ -250,6 +327,6 @@ export class PuzzleUI {
         this.nextWhisper = whisperInterval(s.elapsed);
     } }
     whisper() { const s = this.current(), w = this.world(); const company = w.party.length ? w.party : ['john']; const id = company[s.whispers % company.length]; const person = witnesses.find(x => x.id === id); const line = discipleWhispers[id][Math.floor(s.whispers / company.length) % 3]; const n = s.whispers++; this.sound.rustle(n % 2 ? .65 : -.65); const stream = document.createElement('div'); stream.className = 'disciple-whisper'; stream.style.left = `${4 + (n * 29) % 55}%`; stream.style.setProperty('--drift', `${n % 2 ? 30 : -30}px`); stream.innerHTML = '<small></small><span></span>'; stream.querySelector('small').textContent = person.name.toUpperCase(); stream.querySelector('span').textContent = line; const rain = $('whisperRain'); rain.append(stream); while (rain.children.length > 4)
-        rain.firstElementChild?.remove(); stream.addEventListener('animationend', () => stream.remove()); setTimeout(() => stream.remove(), 14000); if (this.reduced)
+        rain.firstElementChild?.remove(); const timer = setTimeout(() => { stream.remove(); this.whisperTimers.delete(timer); }, 14000); this.whisperTimers.add(timer); stream.addEventListener('animationend', () => { stream.remove(); clearTimeout(timer); this.whisperTimers.delete(timer); }); if (this.reduced)
         stream.classList.add('still-whisper'); $('puzzleStatus').textContent = person.name + ' whispers: ' + line; }
 }

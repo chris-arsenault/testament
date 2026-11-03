@@ -1,13 +1,13 @@
 import { formationPoint, newActor, advanceActor, turnToward } from './actor-motion.js';
 import { WitnessVisuals } from './witness-visuals.js';
-import { portalModel, throneModel, tableModel, catModel, discipleModel, angelModel, gardenModel } from './models.js';
-import { batch, box as carvedBox } from './modeling.js';
+import { portalModel, throneModel, tableModel, catModel, discipleModel, angelModel, gardenModel, setEyeAperture } from './models.js';
+import { batch, box as carvedBox, groundShadows } from './modeling.js';
 import { witnesses } from './content.js';
 import { rooms, homes, floorHeight } from './rooms.js';
 import { RoomScenery, onTerrain } from './room-scenery.js';
 import { manifestation, witnessVisual, witnessBodyHeight, catCopies } from './witnesses.js';
 import { returningRoots } from './roots.js';
-import { gazeLanding, actorPlacement, occludesSegment } from './space.js';
+import { groundAt, gazeLanding, actorPlacement, occludesSegment } from './space.js';
 import { Relics } from './relics.js';
 import * as T from '../three.module.js';
 import { throneVisible } from './world.js';
@@ -22,6 +22,7 @@ export class Cathedral {
     tableGroup;
     relicRoot;
     gardenRoots;
+    gardenScar;
     effects;
     columnMats = [];
     copies = [];
@@ -179,6 +180,9 @@ export class Cathedral {
         }
         this.scar = this.ring(2.5, .045, this.mat('#4f382e', .7), 0, .045, -8);
         this.scar.rotation.x = -Math.PI / 2;
+        this.gardenScar = this.scar.clone();
+        onTerrain(this.gardenScar);
+        this.root.add(this.gardenScar);
         this.throne = throneModel(stone, gold, dark);
         this.root.add(this.throne);
         this.cat = catModel();
@@ -307,7 +311,8 @@ export class Cathedral {
         const height = w.y;
         const depth = w.underworld > 0 ? 6.4 * Math.min(1, (9 - w.underworld) / 1.2, w.underworld / 2) : 0;
         this.burial.visible = depth > 0;
-        this.scar.visible = w.buried && (w.place === 'garden' || w.place === 'crypt');
+        this.scar.visible = w.buried && w.place === 'crypt';
+        this.gardenScar.visible = w.buried && w.place === 'garden';
         const lowHeight = manifestation(w, 'alphaeus') ? witnessBodyHeight(w) : w.place === 'nave' && w.passage && w.x > 8 && w.z < -8 ? .85 : 1.7;
         this.camera.position.set(w.x, lowHeight + height - (reduced && depth > 0 ? 6.4 : depth), w.z);
         this.camera.rotation.set(w.pitch, w.yaw, 0);
@@ -327,10 +332,12 @@ export class Cathedral {
         this.angel.scale.setScalar(Math.max(.01, w.angel));
         this.angel.position.y = (w.underworld > 0 ? -1 : 3.7) + (reduced ? 0 : Math.sin(t * .3) * .3);
         this.angel.rotation.x = w.underworld > 0 ? Math.PI : 0;
-        this.eyes.scale.y = this.pupils.scale.y = w.underworld > 0 ? .04 : witnessVisual(w, 'john') ? .08 : 1;
+        const aperture = w.underworld > 0 ? .04 : witnessVisual(w, 'john') ? .08 : 1;
+        setEyeAperture(this.eyes, aperture);
+        setEyeAperture(this.pupils, aperture);
         this.eyes.rotation.y = this.pupils.rotation.y = reduced ? 0 : t * .055;
         this.wings.rotation.z = reduced ? 0 : Math.sin(t * .12) * .12;
-        this.centralEye.scale.y = this.eyes.scale.y;
+        this.centralEye.scale.y = aperture;
         const color = rooms[w.place].sky;
         this.scene.background.set(depth > 0 ? '#0a0706' : color);
         this.scene.fog.color.set(depth > 0 ? '#0a0706' : color);
@@ -403,6 +410,10 @@ export class Cathedral {
             copy.position.set(p.x, p.y + .03, p.z);
             copy.rotation.y = i * .9;
         } });
+        const surface = (x, z, maximum) => groundAt(w, x, z, maximum);
+        for (const actor of [this.cat, ...this.copies, ...this.companions, ...Object.values(this.residents)])
+            if (actor.visible)
+                groundShadows(actor, surface);
         this.effects.update(w, reduced);
         this.renderer.render(this.scene, this.camera);
     }
