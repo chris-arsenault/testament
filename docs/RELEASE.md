@@ -83,3 +83,5 @@ Published from `280255f7b2a3d19d7a8561f8d77d8c548a008383`, saved version `appgpr
 ## Version 13 — Continuity and scene polish
 
 Prepared November 3, 2026 (America/Phoenix). Three subagent reviews repaired puzzle-session persistence and keyboard navigation, terrain marks/shadows and local angel eyelids, and movement/save continuity. Runtime integration suspends hidden audio, reduces paused rendering, recovers WebGL connections, follows live OS motion preference changes and improves compact layouts. All 134 automated tests and strict compilation pass. Browser evidence and limits are recorded in CONTINUITY_PASS.md. Publication receipt follows.
+
+Published from `05c0e9be5ff25c3c1676dd5fe62a0ab5ec5778d9`, saved version `appgprj_6ae8ef5a5b408191a788e3fc3596804b~appgver_1b9ff0614e488191a5ad6ed168bb77c0`, deployment `appgdep_6aea0bf8143c819199edc060a05b05bd` (succeeded). The existing public URL remains https://testament-exodus-protocol-carse.tsonu.chatgpt.site. The deployed entry and playable nave were verified. This post-publication receipt changes documentation only.
