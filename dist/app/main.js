@@ -1,3 +1,4 @@
+import { captureMouse, lookDelta, volumeMix } from './look.js';
 import { Narrator, roomRecords } from './narrative.js';
 import { Cathedral } from './rendering.js';
 import { Sound } from './audio.js';
@@ -24,23 +25,41 @@ const narrator = new Narrator();
 let roomTime = 0, castTime = 0;
 const audio = new Sound(), keys = new Set();
 let active = false, started = false, last = performance.now(), saveTime = 0, captionTime = 0, drag = false, focusToggle = false, eventCount = 0, autoWalk = false, lastSpace = w.place, lastTurns = w.turns;
-let settings = { music: 45, effects: 65, reduced: matchMedia('(prefers-reduced-motion: reduce)').matches, easy: false, subtitles: true, narration: true };
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let volume = 65;
 try {
-    settings = { ...settings, ...JSON.parse(localStorage.getItem('testament-settings') || '{}') };
+    const stored = localStorage.getItem('testament-volume');
+    if (stored !== null && Number.isFinite(Number(stored)))
+        volume = Math.max(0, Math.min(100, Number(stored)));
 }
 catch { }
-for (const id of ['music', 'effects', 'reduced', 'easy', 'subtitles', 'narration']) {
-    const el = $(id);
-    if (el.type === 'checkbox')
-        el.checked = !!settings[id];
-    else
-        el.value = String(settings[id]);
-    el.oninput = () => { settings[id] = el.type === 'checkbox' ? el.checked : Number(el.value); document.body.classList.toggle('quiet', settings.reduced); audio.music.setVolume(settings.music / 100); audio.effects.setVolume(settings.effects / 100); try {
-        localStorage.setItem('testament-settings', JSON.stringify(settings));
-    }
-    catch { } };
+const volumeSlider = $('volume');
+volumeSlider.value = String(volume);
+function applyVolume() { const mix = volumeMix(volume); audio.music.setVolume(mix.music); audio.effects.setVolume(mix.effects); }
+volumeSlider.oninput = () => { volume = Number(volumeSlider.value); applyVolume(); try {
+    localStorage.setItem('testament-volume', String(volume));
 }
-document.body.classList.toggle('quiet', settings.reduced);
+catch { } };
+document.body.classList.toggle('quiet', reduced);
+let softLook = false;
+function fallbackLook() { if (!active)
+    return; softLook = true; canvas.style.cursor = 'none'; $('lookHint').textContent = 'MOUSE · LOOK WITHIN VIEW / ESC · RELEASE'; }
+function capture() { if (active)
+    captureMouse(canvas, () => fallbackLook()); }
+function rotate(x, y) { const next = lookDelta(w.yaw, w.pitch, x, y); w.yaw = next.yaw; w.pitch = next.pitch; }
+let wasLocked = false;
+document.addEventListener('pointerlockchange', () => { const locked = document.pointerLockElement === canvas; canvas.classList.toggle('captured', locked); if (locked) {
+    softLook = false;
+    canvas.style.cursor = '';
+} if (locked && !active) {
+    document.exitPointerLock();
+    return;
+} if (wasLocked && !locked && active)
+    pause(); wasLocked = locked; if (locked)
+    $('lookHint').textContent = 'MOUSE · LOOK / ESC · RELEASE'; });
+document.addEventListener('pointerlockerror', fallbackLook);
+document.addEventListener('mousemove', e => { if (active && (document.pointerLockElement === canvas || (softLook && e.target === canvas)))
+    rotate(e.movementX, e.movementY); });
 function enterRoom() { const r = roomRecords[w.place]; $('roomTitle').textContent = r.title; $('roomDetail').textContent = r.detail; $('roomRecord').textContent = 'LOCATION RECORD / ' + r.record; $('roomKicker').textContent = w.place === 'stair' ? 'TAKE ' + String(w.turns + 1).padStart(2, '0') + ' / THE FIRST ASCENT' : 'FIELD RECORD / ' + String(w.returns + 1).padStart(2, '0') + ' / ARRIVAL NOT CONFIRMED'; roomTime = 5.2; castTime = 0; narrator.enter(w); }
 function cast(role, name, detail) { $('castRole').textContent = role; $('castName').textContent = name; $('castDetail').textContent = detail; castTime = 7; }
 function save() { try {
@@ -64,12 +83,14 @@ function roster() { const r = $('roster'); r.replaceChildren(); for (const witne
     r.append(b);
 } }
 function pause() { if (menu.open)
-    return; active = false; autoWalk = false; keys.clear(); drag = false; audio.pause(true); roster(); menu.showModal(); menu.tabIndex = -1; menu.focus(); menu.scrollTop = 0; save(); }
-function resume() { menu.close(); active = started; audio.pause(false); keys.clear(); last = performance.now(); }
-$('enter').onclick = () => { started = true; active = true; $('veil').classList.add('hidden'); audio.start(); audio.music.setVolume(settings.music / 100); audio.effects.setVolume(settings.effects / 100); enterRoom(); captionTime = 0; $('caption').textContent = ''; };
+    return; active = false; softLook = false; canvas.style.cursor = ''; if (document.pointerLockElement === canvas)
+    document.exitPointerLock(); autoWalk = false; keys.clear(); drag = false; audio.pause(true); roster(); menu.showModal(); menu.tabIndex = -1; menu.focus(); menu.scrollTop = 0; save(); }
+function resume(lock = true) { menu.close(); active = started; audio.pause(false); keys.clear(); last = performance.now(); if (lock)
+    capture(); }
+$('enter').onclick = () => { started = true; active = true; capture(); $('veil').classList.add('hidden'); audio.start(); applyVolume(); enterRoom(); captionTime = 0; $('caption').textContent = ''; };
 $('menuButton').onclick = pause;
-$('resume').onclick = resume;
-menu.addEventListener('cancel', e => { e.preventDefault(); resume(); });
+$('resume').onclick = () => resume();
+menu.addEventListener('cancel', e => { e.preventDefault(); resume(false); });
 $('home').onclick = () => { w.place = 'nave'; w.x = 0; w.z = 12; w.yaw = 0; w.pitch = 0; w.cooldown = 2; save(); resume(); };
 let resetArmed = false;
 $('new').onclick = () => { if (!resetArmed) {
@@ -77,7 +98,9 @@ $('new').onclick = () => { if (!resetArmed) {
     $('new').textContent = 'Forget permanently?';
     return;
 } w = initial(); resetArmed = false; $('new').textContent = 'Forget this place'; save(); roster(); resume(); };
-addEventListener('keydown', e => { if (e.code === 'Escape' && !menu.open) {
+addEventListener('keydown', e => { if ((e.code === 'Escape' || e.key === 'Escape') && !menu.open) {
+    e.preventDefault();
+    e.stopPropagation();
     pause();
     return;
 } if (!active || e.target instanceof HTMLInputElement)
@@ -92,14 +115,20 @@ addEventListener('blur', () => { if (active)
     pause(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden && active)
     pause(); });
+canvas.onpointerleave = () => { if (softLook) {
+    softLook = false;
+    canvas.style.cursor = '';
+    $('lookHint').textContent = 'CLICK TO LOOK · ARROWS TO LOOK';
+} };
 canvas.onpointerdown = e => { if (!active)
-    return; drag = true; canvas.setPointerCapture(e.pointerId); };
+    return; if (e.pointerType === 'mouse') {
+    capture();
+    return;
+} drag = true; canvas.setPointerCapture(e.pointerId); };
 canvas.onpointerup = () => drag = false;
 canvas.onpointercancel = () => drag = false;
-canvas.onpointermove = e => { if (drag && active) {
-    w.yaw -= e.movementX * .004;
-    w.pitch = Math.max(-1.2, Math.min(1.2, w.pitch - e.movementY * .003));
-} };
+canvas.onpointermove = e => { if (e.pointerType !== 'mouse' && drag && active)
+    rotate(e.movementX, e.movementY); };
 document.querySelectorAll('[data-key]').forEach(b => { b.onpointerdown = e => { e.preventDefault(); keys.add(b.dataset.key); b.setPointerCapture(e.pointerId); }; b.onpointerup = b.onpointercancel = () => keys.delete(b.dataset.key); });
 document.querySelectorAll('[data-companion]').forEach(b => b.onclick = () => { if (active)
     separate(w, Number(b.dataset.companion)); });
@@ -117,7 +146,7 @@ function frame(now) {
         w.yaw += ((keys.has('ArrowLeft') ? 1 : 0) - (keys.has('ArrowRight') ? 1 : 0)) * dt * 1.5;
         w.pitch = Math.max(-1.2, Math.min(1.2, w.pitch + ((keys.has('ArrowUp') ? 1 : 0) - (keys.has('ArrowDown') ? 1 : 0)) * dt));
         walk(w, (-Math.sin(w.yaw) * forward + Math.cos(w.yaw) * side) * dt * 3.5, (-Math.cos(w.yaw) * forward - Math.sin(w.yaw) * side) * dt * 3.5);
-        tick(w, dt, { moving: !!(forward || side), target: renderer.target(w), focus: settings.easy || focusToggle || keys.has('KeyF') });
+        tick(w, dt, { moving: !!(forward || side), target: renderer.target(w), focus: focusToggle || keys.has('KeyF') });
         audio.update(w);
         if (w.events.length) {
             const e = w.events.shift();
@@ -130,8 +159,7 @@ function frame(now) {
             $('caption').textContent = e.text;
             captionTime = 8;
             eventCount++;
-            if (settings.subtitles)
-                $('soundCaption').textContent = e.kind === 'cat' ? '[a purr behind the stone]' : e.kind === 'angel' ? '[a thousand small lids opening]' : '[the building answers, far below]';
+            $('soundCaption').textContent = e.kind === 'cat' ? '[a purr behind the stone]' : e.kind === 'angel' ? '[a thousand small lids opening]' : '[the building answers, far below]';
         }
         captionTime -= dt;
         if (captionTime <= 0) {
@@ -144,7 +172,7 @@ function frame(now) {
         }
         roomTime = Math.max(0, roomTime - dt);
         castTime = Math.max(0, castTime - dt);
-        const verse = narrator.update(dt, settings.narration);
+        const verse = narrator.update(dt, true);
         $('narrator').classList.toggle('speaking', !!verse);
         $('narrator').setAttribute('aria-hidden', String(!verse));
         if (verse) {
@@ -175,7 +203,7 @@ function frame(now) {
             enterRoom();
     }
     $('location').textContent = names[w.place];
-    renderer.draw(w, active ? dt : 0, settings.reduced);
+    renderer.draw(w, active ? dt : 0, reduced);
 }
 requestAnimationFrame(frame);
 addEventListener('pagehide', save);

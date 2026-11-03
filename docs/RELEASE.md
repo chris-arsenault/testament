@@ -33,3 +33,9 @@ The Bible is interpreted through seven grouped thematic families of the 66-book 
 Combination checks establish valid states and exits, not exhaustive balance or artistic success. Physical touch hardware, subjective headphone listening, and an independent human playthrough remain unverified. Those limits do not prevent playing the published build.
 
 This release receipt was written after publication; it does not alter the deployed application files.
+
+## Version 5 — Engravings and the unlocated voice
+
+Published November 2, 2026 (America/Phoenix), source `0a85d8fa3a7a66f23aeac4e86c2e406dafc24b3a`, deployment `appgdep_6ae93c3dfa4c8191ae6143f6c4212cd1` (succeeded).
+
+Adds two locally bundled Dürer engravings with image-driven bump relief, a contextual WEB scripture subtitle narrator, unreliable room-entry catalogues, cinematic framing, and cat/angel cast cards. Credits are available through the settings menu. Strict compilation and all 16 tests passed; live room-entry text and local desktop/mobile rendering were verified. Source provenance and quotation references are recorded in ART_AND_NARRATION.md.

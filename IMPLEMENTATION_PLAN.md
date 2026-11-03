@@ -217,4 +217,11 @@ Version 4 deployed successfully from commit `8af1f04f5b5042817580c0c607424f4f856
 - Added a subtitle-only scripture narrator with verified World English Bible quotations and accurate references. Room entry and events choose context-specific passages; queued lines are paced, deduplicated, and cleared on room changes. Narration can be disabled independently.
 - Added cinematic arrival cards with intentionally displaced location references, impossible chronology, loop-dependent take numbers, letterboxing, and cast cards for the cat and angel. No movement is locked. Reduced motion removes transitions.
 - Validation: strict TypeScript build and 16 tests passed; desktop room/narrator and 390x844 arrival-card layouts inspected; independent narration toggle verified; no browser console errors observed. See docs/ART_AND_NARRATION.md for provenance and implementation detail.
-- Publication: pending at the time this source revision was packaged.
+- Publication: version 5 succeeded; source commit `0a85d8fa3a7a66f23aeac4e86c2e406dafc24b3a`. The live entry sequence was verified after reloading. This receipt was updated after publication.
+
+### 2026-11-02 — Mouse capture and a single volume control
+
+- Desktop entry/resume/scene clicks request Pointer Lock; relative mouse motion drives the camera. Esc releases look and pauses; menus also release capture. Touch retains drag-to-look.
+- The Codex in-app browser rejected Pointer Lock with WrongDocumentError during verification. In this host, an automatic click-to-look fallback accepts mouse motion without holding a button, bounded by the view. True unrestricted capture requires a host supporting Pointer Lock; it was not verified in an external browser.
+- Removed all configurable toggles and separate audio sliders. One persisted Volume slider scales music and effects together, with zero muting both. Narration and sound captions remain enabled; system reduced-motion preference is automatic. Party and recovery actions remain available.
+- Fixed Escape default behavior closing the dialog on the same keypress that opened it. Browser verified no-hold look, Escape pause, and a single settings slider. Strict build and 19 tests passed (including volume mute, pitch clamp, and denied/unsupported pointer lock).
