@@ -69,3 +69,5 @@ Rebuilds architectural details, furniture, the calico, all twelve disciples, the
 ## Version 11 — Seven rooms and resident witnesses
 
 Prepared for publication: seven spatially distinct rooms, twelve persistent home assignments, in-world identity and party replacement encounters, protected throne claims, left-click examination and numbered companion orders. The menu roster is removed. Two new room puzzles, narration records and score assignments complete the expansion. Strict compilation and 76 checks pass; browser verification and limits are recorded in SEVEN_ROOMS.md. Deployment receipt follows after publication.
+
+Published November 2, 2026 (America/Phoenix), source `38ab4b3e25db645af2cb58131885477f19187728`, saved version `appgprj_6ae8ef5a5b408191a788e3fc3596804b~appgver_ff83dd422bfc8191bbeb07d1aa0a580c`, deployment `appgdep_6ae983e5be8c8191a1207d136fc1fe54` (succeeded). The public entry, new input labels and simplified menu were verified without console errors. This receipt was added after publication and changes documentation only.

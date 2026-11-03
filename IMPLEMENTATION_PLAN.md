@@ -281,3 +281,5 @@ Completed the requested visual pass across architecture, stairs, furniture, the 
 Completed seven distinct spatial designs with shared geometry/collision layout data, two new puzzles, all twelve disciple homes, nearby identity/recruitment encounters, throne-safe swaps, left-click examination and retained 1–3 orders. Removed the pause-menu roster. Old ordinary wait positions now migrate to homes; throne claims persist. This supersedes D-005 gaze-directed waiting under the user's latest request.
 
 Strict compilation and 76 automated checks pass. Local browser review covered seven spaces, click recruitment, protected throne slots, both new puzzle completions, the simplified menu and phone-width encounter layout. See docs/SEVEN_ROOMS.md for the architecture, inventory and limits. Publication receipt follows in docs/RELEASE.md.
+
+Version 11 is published from `38ab4b3e25db645af2cb58131885477f19187728`; deployment `appgdep_6ae983e5be8c8191a1207d136fc1fe54` succeeded. The public entry and simplified menu were verified. All five requirements are complete, with evidence in docs/SEVEN_ROOMS.md.
