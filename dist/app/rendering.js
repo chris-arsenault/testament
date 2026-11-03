@@ -1,4 +1,7 @@
 import { WitnessVisuals } from './witness-visuals.js';
+import { columnModel, portalModel, roseModel, windowModel, throneModel, tableModel, catModel, discipleModel, angelModel, gardenModel } from './models.js';
+import { batch, box as carvedBox, archBand, tube, lathe } from './modeling.js';
+import { witnesses } from './content.js';
 import { manifestation, witnessVisual, witnessBodyHeight, catCopies } from './witnesses.js';
 import { returningRoots } from './roots.js';
 import { stairs, groundAt, gazeLanding } from './space.js';
@@ -6,6 +9,8 @@ import { Relics } from './relics.js';
 import * as T from '../three.module.js';
 import { throneVisible } from './world.js';
 export class Cathedral {
+    figures = {};
+    centralEye;
     effects;
     columnMats = [];
     copies = [];
@@ -100,10 +105,13 @@ export class Cathedral {
         stone.map = new T.CanvasTexture(textureCanvas);
         stone.map.wrapS = stone.map.wrapT = T.RepeatWrapping;
         stone.map.repeat.set(2, 4);
-        this.box(0, -.25, 0, 28, .5, 36, stone);
+        const pavement = new T.Group();
+        this.root.add(pavement);
+        this.box(0, -.25, 0, 28, .5, 36, stone, pavement);
         for (let x = -12; x <= 12; x += 2)
             for (let z = -16; z <= 16; z += 2)
-                this.box(x, .006, z, 1.94, .015, 1.94, (x + z) % 4 === 0 ? stone : dark);
+                this.box(x, .006, z, 1.94, .015, 1.94, (x + z) % 4 === 0 ? stone : dark, pavement);
+        batch(pavement);
         // Broken side walls retain large, visible passages at the transept.
         for (const x of [-13, 13])
             for (const z of [-10, 10])
@@ -111,74 +119,86 @@ export class Cathedral {
         for (const z of [-18, 18])
             for (const x of [-9, 9])
                 this.box(x, 7, z, 10, 14, .8, stone);
+        const pierMats = [stone, dark, gold].map(m => { const c = m.clone(); c.transparent = true; this.columnMats.push(c); return c; });
+        this.materials.push(pierMats[0]);
+        const pier = columnModel(...pierMats);
         for (const x of [-7, 7])
             for (const z of [-10, 0, 10]) {
-                const columnMat = stone.clone();
-                columnMat.transparent = true;
-                this.columnMats.push(columnMat);
-                this.mesh(new T.CylinderGeometry(.62, .84, 11, 12), columnMat, x, 5.5, z);
-                this.box(x, .2, z, 2, .4, 2, dark);
-                this.box(x, 10.6, z, 1.8, .7, 1.8, gold);
-                for (const offset of [-.32, .32])
-                    this.mesh(new T.CylinderGeometry(.12, .12, 11, 8), white, x + offset, 5.5, z + .48);
+                const column = pier.clone(true);
+                column.position.set(x, 0, z);
+                this.root.add(column);
             }
+        const masonry = new T.Group();
+        this.root.add(masonry);
         for (const z of [-10, 0, 10]) {
-            const arch = this.mesh(new T.TorusGeometry(7, .22, 10, 64, Math.PI), stone, 0, 10.4, z);
-            arch.scale.y = 1.15;
-            this.box(0, 17.9, z, .16, .8, .5, gold);
+            archBand(masonry, stone, 6.9, 10.9, 7.1, .24, .35, z);
+            archBand(masonry, gold, 6.72, 10.9, 6.92, .06, .15, z + .23);
+            carvedBox(masonry, gold, 0, 18.1, z, .3, .72, .6, .04);
         }
+        for (const x of [-12.55, 12.55])
+            for (const z of [-10, 10])
+                for (const y of [.22, 11.75])
+                    carvedBox(masonry, dark, x, y, z, .45, .24, 12, .05);
+        // A solid clerestory behind the tracery makes the portals read as deep openings.
+        this.box(0, 9.5, -18.08, 8, 19, .36, stone).name = 'frontClerestory';
+        this.box(0, 9.5, 18.08, 8, 19, .36, stone, masonry);
+        for (const x of [-3.65, 3.65])
+            carvedBox(masonry, dark, x, 8.5, -17.8, .25, 17, .4, .035);
+        batch(masonry);
         this.ceiling = new T.Group();
         this.root.add(this.ceiling);
-        for (let z = -16; z < 18; z += 4) {
-            const beam = this.box(0, 17, z, 25, .3, .24, dark, this.ceiling);
-            beam.rotation.z = .04;
-        }
-        for (const x of [-12.7, 12.7])
+        for (const z of [-10, 0])
+            for (const side of [-1, 1])
+                tube(this.ceiling, dark, [[side * 7, 10.9, z], [side * 5, 14.5, z + 2.5], [0, 18, z + 5], [side * -5, 14.5, z + 7.5], [side * -7, 10.9, z + 10]], .12, 40, 8);
+        carvedBox(this.ceiling, gold, 0, 18, 0, .18, .18, 20, .025);
+        batch(this.ceiling);
+        const window = windowModel(stone, gold, glow);
+        for (const x of [-12.6, 12.6])
             for (const z of [-12, -6, 6, 12]) {
-                const win = this.box(x, 7, z, .06, 5, 1.4, glow);
-                this.ring(.7, .07, gold, x, 9.5, z).rotation.y = Math.PI / 2;
+                const win = window.clone(true);
+                win.position.set(x, 4.4, z);
+                win.rotation.y = x < 0 ? Math.PI / 2 : -Math.PI / 2;
+                this.root.add(win);
             }
-        for (const [x, z, rot] of [[0, -17, 0], [-12.9, 0, Math.PI / 2], [12.9, 0, Math.PI / 2]]) {
-            const g = new T.Group();
+        const door = portalModel(stone, dark, gold);
+        for (const [x, z, rot] of [[0, -17, 0], [-12.9, 0, Math.PI / 2], [12.9, 0, -Math.PI / 2]]) {
+            const g = door.clone(true);
             g.position.set(x, 0, z);
             if (z === -17)
                 g.name = 'frontDoor';
             g.rotation.y = rot;
             this.root.add(g);
-            this.box(-2.5, 3, 0, .55, 6, .7, gold, g);
-            this.box(2.5, 3, 0, .55, 6, .7, gold, g);
-            this.ring(2.5, .28, gold, 0, 5.8, 0, g);
-            this.box(0, 3, -.3, 4.5, 6, .2, this.mat('#090e15', 0, '#162029'), g);
         }
-        // A stair climbs into its own displaced return, while the usable surface is continuous.
+        // Tread dimensions and tops are shared with physical support; ornaments stay outside them.
         const stair = new T.Group();
         stair.name = 'stair';
         this.root.add(stair);
-        for (const step of stairs) {
+        for (const [i, step] of stairs.entries()) {
             const y = step.y, z = step.z;
-            this.box(step.x, y - .15, z, step.width, .3, step.depth, stone, stair);
-            for (const x of [-2.3, 2.3])
-                this.box(x, y + .65, z, .09, 1.4, .09, gold, stair);
+            carvedBox(stair, stone, step.x, y - .15, z, step.width, .3, step.depth, .025);
+            this.box(0, y - .035, z + step.depth / 2 + .002, step.width - .08, .035, .015, gold, stair);
+            if (i % 3 === 0)
+                for (const x of [-1.94, 1.94]) {
+                    const post = lathe(stair, gold, [[.1, 0], [.1, .08], [.055, .14], [.045, .84], [.08, .9], [.045, .96], [0, 1.02]], 10);
+                    post.position.set(x, y - .05, z);
+                }
         }
         for (let i = 0; i < 22; i++) {
-            const a = i * .18;
-            this.box(6 + Math.cos(a) * 5, 7 + i * .23, -6 + Math.sin(a) * 5, 2, .2, 1, stone, stair).rotation.y = -a;
+            const a = i * .18, g = new T.Group();
+            g.position.set(6 + Math.cos(a) * 5, 7 + i * .23, -6 + Math.sin(a) * 5);
+            g.rotation.y = -a;
+            stair.add(g);
+            carvedBox(g, stone, 0, 0, 0, 2, .2, 1, .025);
+            this.box(0, .08, .48, 1.92, .025, .025, gold, g);
         }
         this.screen = this.box(0, 2, -2, 6, 4, .24, this.mat('#8a9f9d', .5));
         this.screen.material.transparent = true;
         this.screen.material.opacity = .28;
         this.screen.material.wireframe = true;
-        this.rose = new T.Group();
-        this.rose.position.set(0, 11, -17.4);
+        batch(stair);
+        this.rose = roseModel(stone, gold);
+        this.rose.position.set(0, 11.8, -17.4);
         this.root.add(this.rose);
-        for (let i = 0; i < 6; i++)
-            this.ring(1.4 + i * .32, .035, gold, 0, 0, 0, this.rose);
-        for (let i = 0; i < 24; i++) {
-            const a = i * Math.PI / 12;
-            const petal = this.mesh(new T.CircleGeometry(.55, 3), this.mat(i % 2 ? '#658b88' : '#b2936b', .3, i % 2 ? '#264b4c' : '#62432b'), Math.cos(a) * 2.1, Math.sin(a) * 2.1, .05, this.rose);
-            petal.rotation.z = a;
-            this.box(Math.cos(a) * 1.1, Math.sin(a) * 1.1, 0, .04, 2.4, .06, gold, this.rose).rotation.z = a - Math.PI / 2;
-        }
         const particles = new Float32Array(360 * 3);
         for (let i = 0; i < 360; i++) {
             particles[i * 3] = Math.sin(i * 13.7) * 12;
@@ -192,8 +212,9 @@ export class Cathedral {
         this.low = new T.Group();
         this.low.position.set(10.5, 0, -11);
         this.root.add(this.low);
-        this.box(0, .7, 0, 2, 1.4, .3, black, this.low);
-        this.ring(1, .12, gold, 0, .4, .1, this.low);
+        const smallDoor = door.clone(true);
+        smallDoor.scale.set(.35, .18, .7);
+        this.low.add(smallDoor);
         this.water = this.box(0, .08, -2, 8, .12, 8, new T.MeshStandardMaterial({ color: '#507f89', metalness: .85, roughness: .15, transparent: true, opacity: .85 }));
         this.bridge = new T.Group();
         this.root.add(this.bridge);
@@ -230,94 +251,43 @@ export class Cathedral {
         }
         this.scar = this.ring(2.5, .045, this.mat('#4f382e', .7), 0, .045, -8);
         this.scar.rotation.x = -Math.PI / 2;
-        this.throne = new T.Group();
+        this.throne = throneModel(stone, gold, dark);
         this.root.add(this.throne);
-        this.box(0, .7, -9, 3, 1.4, 2, gold, this.throne);
-        this.box(0, 2.5, -10, 3, 4, .4, gold, this.throne);
-        for (const x of [-1.5, 1.5])
-            this.box(x, 1.6, -9, .3, 2, 2, dark, this.throne);
-        this.cat = new T.Group();
+        this.cat = catModel();
         this.root.add(this.cat);
-        this.mesh(new T.SphereGeometry(.32, 16, 12), white, 0, .4, 0, this.cat).scale.set(.8, 1, 1.4);
-        this.mesh(new T.SphereGeometry(.24, 16, 12), white, 0, .72, -.24, this.cat);
-        const orange = this.mat('#ad643b');
-        for (const x of [-.15, .15]) {
-            const ear = this.mesh(new T.ConeGeometry(.11, .23, 3), x < 0 ? black : orange, x, .98, -.22, this.cat);
-            ear.rotation.z = x * 1.5;
-            this.mesh(new T.SphereGeometry(.055, 10, 8), glow, x * .7, .77, -.45, this.cat);
-            this.box(x, .13, -.1, .1, .25, .15, white, this.cat);
-        }
-        this.mesh(new T.SphereGeometry(.23, 12, 10), orange, .16, .47, .04, this.cat).scale.set(.6, 1, 1.3);
-        const tail = this.mesh(new T.TorusGeometry(.3, .055, 8, 16, Math.PI * 1.4), black, .1, .45, .45, this.cat);
-        tail.rotation.y = 1;
-        this.angel = new T.Group();
+        const angel = angelModel();
+        this.angel = angel.root;
+        this.wings = angel.wings;
+        this.eyes = angel.eyes;
+        this.pupils = angel.pupils;
+        this.centralEye = angel.center;
         this.angel.position.set(0, 3.7, -8);
         this.root.add(this.angel);
-        this.wings = new T.Group();
-        this.angel.add(this.wings);
-        for (let i = 0; i < 6; i++) {
-            const g = new T.Group();
-            g.rotation.z = i * Math.PI / 3;
-            this.wings.add(g);
-            for (let j = 0; j < 14; j++) {
-                const feather = this.mesh(new T.ConeGeometry(.18, 3.2 - j * .12, 5), white, 1 + j * .16, 0, j * .025, g);
-                feather.rotation.z = -Math.PI / 2 + .3;
-            }
-        }
-        for (let i = 0; i < 3; i++) {
-            const ring = this.ring(1.4 + i * .58, .07, gold, 0, 0, 0, this.angel);
-            ring.rotation.x = i * .8;
-            ring.rotation.y = i * .7;
-        }
-        const eyeGeo = new T.SphereGeometry(.07, 6, 4);
-        this.eyes = new T.InstancedMesh(eyeGeo, glow, 1000);
-        const pupil = new T.InstancedMesh(new T.SphereGeometry(.031, 5, 4), black, 1000);
-        const dummy = new T.Object3D();
-        for (let i = 0; i < 1000; i++) {
-            const a = i * 2.399, y = 1 - 2 * i / 1000, r = Math.sqrt(1 - y * y), rad = 1.3 + (i % 3) * .55;
-            dummy.position.set(Math.cos(a) * r * rad, y * rad, Math.sin(a) * r * rad);
-            dummy.lookAt(dummy.position.clone().multiplyScalar(2));
-            dummy.scale.set(1.5, .85, .6);
-            dummy.updateMatrix();
-            this.eyes.setMatrixAt(i, dummy.matrix);
-            dummy.position.multiplyScalar(1.025);
-            dummy.updateMatrix();
-            pupil.setMatrixAt(i, dummy.matrix);
-        }
-        this.pupils = pupil;
-        this.angel.add(this.eyes, pupil);
         for (let i = 0; i < 7; i++) {
             const copy = this.cat.clone(true);
             copy.visible = false;
             this.root.add(copy);
             this.copies.push(copy);
         }
-        const bushes = new T.Group();
+        const bushes = gardenModel();
         bushes.name = 'bushes';
         this.root.add(bushes);
-        for (let i = 0; i < 35; i++) {
-            const a = i * 2.399, r = Math.sqrt(i) * .6;
-            this.mesh(new T.IcosahedronGeometry(.7 + (i % 3) * .15, 0), green, Math.sin(a) * r, .4, Math.cos(a) * r - 8, bushes);
-        }
-        const tableStone = this.mat('#263936', .3);
-        this.box(-3.7, .45, 8, .7, .9, .7, tableStone);
-        this.table = this.box(-3.7, .95, 8, 1.7, .16, 1.7, this.mat('#718b76', .4, '#617b51'));
+        const tableStone = this.mat('#263936', .3), pedestal = tableModel(tableStone, gold);
+        pedestal.position.set(-3.7, 0, 8);
+        this.root.add(pedestal);
+        this.table = carvedBox(this.root, this.mat('#718b76', .4, '#617b51'), -3.7, .95, 8, 1.7, .16, 1.7, .025);
+        const pieces = new T.Group();
+        this.root.add(pieces);
         for (let i = 0; i < 4; i++)
             for (let j = 0; j < 4; j++)
-                this.box(-4.25 + i * .36, 1.04, 7.45 + j * .36, .25, .025, .25, (i + j) % 2 ? gold : dark);
+                carvedBox(pieces, (i + j) % 2 ? gold : dark, -4.25 + i * .36, 1.05, 7.45 + j * .36, .25, .04, .25, .014);
+        batch(pieces);
         this.letter = this.box(-4, 1, -6, .7, .02, 1, white);
+        for (const w of witnesses)
+            this.figures[w.id] = discipleModel(w.id);
         for (let i = 0; i < 3; i++) {
             const g = new T.Group();
             this.root.add(g);
-            this.mesh(new T.CylinderGeometry(.23, .38, 1.25, 8), dark, 0, .85, 0, g);
-            this.mesh(new T.SphereGeometry(.2, 12, 8), white, 0, 1.65, 0, g);
-            this.box(.08, 1.1, -.24, .04, .9, .08, glow, g);
-            for (const x of [-.35, .35])
-                this.mesh(new T.CylinderGeometry(.055, .07, .8, 6), gold, x, .9, 0, g);
-            for (const fx of [-.13, .13]) {
-                this.box(fx, .16, 0, .12, .32, .12, dark, g);
-                this.box(fx, .055, -.06, .16, .11, .25, gold, g);
-            }
             this.companions.push(g);
         }
     }
@@ -328,7 +298,7 @@ export class Cathedral {
         if (w.underworld > 0)
             return none;
         const d = this.gazeDirection(w), dir = new T.Vector3(d.x, d.y, d.z), origin = new T.Vector3(w.x, w.y + (manifestation(w, 'alphaeus') ? .68 : w.passage && w.x > 8 && w.z < -8 ? .85 : 1.7), w.z);
-        const targets = [['cat', 'cat', this.cat.position, 6], ['angel', 'angel', this.angel.position, 20], ['stone', 'stone', new T.Vector3(0, w.place === 'crypt' ? 2.5 : 2, w.place === 'crypt' ? -9 : -2), 12], ['threshold', 'front', new T.Vector3(0, w.place === 'stair' ? 11 : 3, -17), 22], ['threshold', 'left', new T.Vector3(-12, 2, 0), 14], ['threshold', 'right', new T.Vector3(12, 2, 0), 14]];
+        const targets = [['cat', 'cat', this.cat.position.clone().add(new T.Vector3(0, .77, -.12)), 6], ['angel', 'angel', this.angel.position, 20], ['stone', 'stone', new T.Vector3(0, w.place === 'crypt' ? 2.5 : 2, w.place === 'crypt' ? -9 : -2), 12], ['threshold', 'front', new T.Vector3(0, w.place === 'stair' ? 11 : 3, -17), 22], ['threshold', 'left', new T.Vector3(-12, 2, 0), 14], ['threshold', 'right', new T.Vector3(12, 2, 0), 14]];
         if (witnessVisual(w, 'andrew'))
             catCopies(w).forEach((p, i) => targets.push(['cat', 'cat-copy-' + i, new T.Vector3(p.x, .72, p.z), 18]));
         let chosen = none, best = .93;
@@ -364,7 +334,10 @@ export class Cathedral {
         const stair = w.place === 'stair';
         this.root.getObjectByName('stair').visible = stair;
         this.root.getObjectByName('frontDoor').position.y = stair ? 8.1 : 0;
-        this.rose.position.y = stair ? 16 : 11;
+        this.rose.position.y = (stair ? 20.2 : 11.8) + (w.ceiling ? 1.05 : 0);
+        const clerestory = this.root.getObjectByName('frontClerestory');
+        clerestory.scale.y = stair ? 26 / 19 : 1;
+        clerestory.position.y = stair ? 13 : 9.5;
         this.root.getObjectByName('bushes').visible = w.place === 'garden';
         const height = w.y;
         const depth = w.underworld > 0 ? 6.4 * Math.min(1, (9 - w.underworld) / 1.2, w.underworld / 2) : 0;
@@ -394,6 +367,7 @@ export class Cathedral {
         this.eyes.scale.y = this.pupils.scale.y = w.underworld > 0 ? .04 : witnessVisual(w, 'john') ? .08 : 1;
         this.eyes.rotation.y = this.pupils.rotation.y = reduced ? 0 : t * .055;
         this.wings.rotation.z = reduced ? 0 : Math.sin(t * .12) * .12;
+        this.centralEye.scale.y = this.eyes.scale.y;
         const color = ['#171e26', '#25202d', '#19312c'][w.reality];
         this.scene.background.set(depth > 0 ? '#0a0706' : color);
         this.scene.fog.color.set(depth > 0 ? '#0a0706' : color);
@@ -420,6 +394,11 @@ export class Cathedral {
             g.visible = !!id && (!w.left.includes(id) || waiting?.place === w.place);
             if (!g.visible)
                 return;
+            if (g.userData.witness !== id) {
+                g.clear();
+                g.add(this.figures[id].clone(true));
+                g.userData.witness = id;
+            }
             let point;
             if (waiting) {
                 point = waiting;

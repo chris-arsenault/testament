@@ -269,3 +269,9 @@ Version 8 deployed successfully from `75d076f237313b94dafea9e58a53a484f05a6dff`.
 All twelve now have distinct audio, visual, and world/interaction consequences. The channels have independent timings and second-action gates, reflecting the user's refinement that they should usually occur at different moments. The revision includes linked cat copies, remembered menu language, a temporarily impossible borrowed glyph ledger, and real changes to gravity, clearance, supporting surfaces, contact, and room connections. No new player-facing ability explanations or settings were added.
 
 The durable trigger matrix, architecture contracts, acceptance checklist, and verification evidence are in docs/WITNESS_PHENOMENA.md. Strict compilation and 57 automated checks pass. Local browser checks covered every witness renderer, the production entry/menu, cat replication, French actions, and contradictory clues clearing to the canonical puzzle. Publication receipt follows in docs/RELEASE.md.
+
+Version 9 is published from `0800796c8e8b11290853180eb74a8d7645fef308`. Deployment `appgdep_6ae97653367c8191ab9c8da913390858` succeeded; the public entry was verified without console errors. The implementation and verification matrix is closed in docs/WITNESS_PHENOMENA.md.
+
+### 2026-11-02 — Modeling and geometry pass
+
+Completed the requested visual pass across architecture, stairs, furniture, the calico, all twelve disciples, the angel, and shrubs. Procedural mesh builders and material batching now separate asset construction from world presentation. Existing physical footprints and throne/tread support heights are preserved. All 64 checks pass, with close visual inspections of the rooms, figures, and affected phenomena. See docs/GEOMETRY_PASS.md for the asset inventory, measured rendering costs, and acceptance evidence. Publication receipt follows in docs/RELEASE.md.
