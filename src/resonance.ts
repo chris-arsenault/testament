@@ -1,0 +1,6 @@
+export const gazeSweep={startHz:1600,endHz:75,duration:.95};
+export function whoomp(channel:any,deep=false){
+ const ctx:AudioContext=channel.ctx;if(!ctx)return;const now=ctx.currentTime,length=deep?4:gazeSweep.duration,noise=ctx.createBuffer(1,Math.ceil(ctx.sampleRate*length),ctx.sampleRate),samples=noise.getChannelData(0);let seed=581;
+ for(let i=0;i<samples.length;i++){seed=(Math.imul(seed,1664525)+1013904223)>>>0;samples[i]=(seed/4294967296*2-1)*.45;}
+ const source=ctx.createBufferSource(),body=ctx.createOscillator(),filter=ctx.createBiquadFilter(),gain=ctx.createGain();source.buffer=noise;body.type='sine';body.frequency.setValueAtTime(deep?39:68,now);body.frequency.exponentialRampToValueAtTime(deep?23:37,now+length);filter.type='lowpass';filter.Q.value=deep?1.2:.8;filter.frequency.setValueAtTime(deep?550:gazeSweep.startHz,now);filter.frequency.exponentialRampToValueAtTime(deep?45:gazeSweep.endHz,now+length*.88);gain.gain.setValueAtTime(0,now);gain.gain.linearRampToValueAtTime(deep?.2:.14,now+.055);gain.gain.exponentialRampToValueAtTime(.0001,now+length);source.connect(filter);body.connect(filter);filter.connect(gain);gain.connect(channel.master);source.start(now);body.start(now);source.stop(now+length);body.stop(now+length);source.onended=()=>{source.disconnect();body.disconnect();filter.disconnect();gain.disconnect();};
+}

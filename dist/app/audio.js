@@ -1,3 +1,4 @@
+import { whoomp } from './resonance.js';
 import { Score } from '../score.js';
 export class Sound {
     music = new Score();
@@ -5,7 +6,8 @@ export class Sound {
     lastStep = 0;
     lastAmbient = 0;
     start() { this.music.start(); this.effects.start(); this.music.setVolume(.45); this.effects.setVolume(.65); }
-    update(w) { const stage = w.place === 'garden' ? (w.angel > .3 ? 3 : 6) : w.place === 'crypt' ? 4 : w.place === 'water' ? 1 : w.place === 'stair' ? w.turns % 3 : 2; this.music.movement(stage); if (w.distance - this.lastStep > .95) {
+    update(w) { if (this.music.filter)
+        this.music.filter.frequency.setTargetAtTime(w.underworld > 0 ? 260 : 20000, this.music.ctx.currentTime, .3); const stage = w.place === 'garden' ? (w.angel > .3 ? 3 : 6) : w.place === 'crypt' ? 4 : w.place === 'water' ? 1 : w.place === 'stair' ? w.turns % 3 : 2; this.music.movement(stage); if (w.distance - this.lastStep > .95) {
         this.lastStep = w.distance;
         this.effects.cue('step');
     } if (w.time - this.lastAmbient > 11) {
@@ -15,6 +17,11 @@ export class Sound {
         else if (w.place === 'stair')
             this.effects.tone(92 / (1 + w.turns % 3), 3, .06);
     } }
-    event(e) { this.effects.cue(e.kind === 'cat' ? 'purr' : 'seal'); }
+    event(e) { if (e.kind === 'gaze-cue')
+        whoomp(this.effects);
+    else if (e.kind === 'chthonic')
+        whoomp(this.effects, true);
+    else
+        this.effects.cue(e.kind === 'cat' ? 'purr' : 'seal'); }
     pause(v) { this.music.setPaused(v); this.effects.setPaused(v); }
 }

@@ -233,3 +233,29 @@ Version 4 deployed successfully from commit `8af1f04f5b5042817580c0c607424f4f856
 - Attempt time has no limit. It gradually increases rustling disciple whispers and falling text, bounded at one whisper every three seconds and four visible streams. System reduced motion provides stationary fades.
 - Board states, completions, time and whisper count persist. Pointer capture releases for the dialog, and Esc returns cleanly. One overall volume slider remains the only configurable setting.
 - Verification: strict build and 26 tests passed; all five puzzle rewards reached through browser controls; saved crypt completion and Esc exit checked in the actual game; phone-width glyph layout and falling whisper text inspected. See docs/PUZZLE_TABLES.md.
+
+### 2026-11-02 — Puzzle publication confirmed
+
+Version 7 deployed successfully from source `c273f020199d17d385c7c5c58edf44efb4bc66a9`. The live nave table was approached and opened through normal controls, showing the five-halo puzzle without console errors. This post-publication receipt changes documentation only.
+
+### 2026-11-02 — Next defect batch recorded
+
+The user requested a durable batch queue before further fixes. See `docs/DEFECTS.md`: D-001 replaces spike-like roots with curved growth emerging from the stone; D-002 strips the tables to their name, puzzle, and one centered "GO IN PEACE" button. The governing direction is Myst-inspired discovery with zero instructional prose. These items are open; this documentation step does not change or deploy the application.
+
+D-003 subsequently adds a chthonic response to interacting with or walking through the angel: subterranean spatial and sonic consequences, with a lingering world trace and no explanatory instructions. This remains part of the queued batch.
+
+D-004 adds throne-room waiting behavior: a disciple stands on the throne, refuses early recall, and becomes willing to leave after prolonged genuine solitude. Save persistence, visible positioning, and an undisclosed solitude threshold are part of its acceptance criteria. This remains queued.
+
+D-005 replaces predetermined waiting positions in other rooms with valid standing locations chosen from the player's gaze at command time. Each disciple's chosen location persists across departures and saves. D-004 remains the throne-room exception. This remains queued.
+
+D-006 removes the F/Attend action and touch toggle. Attention will build automatically from lingering gaze on the same physical target, interrupted by looking away or changing targets, without an additional setting, meter, or tutorial. This remains queued.
+
+Lingering attention will have a low whoomp with a downward low-pass filter sweep, emitted once near 20% of the target's full dwell duration (tunable within 10–25%), rather than at completion. It is controlled by the overall volume slider. This revised audio requirement is attached to D-006 and remains queued.
+
+D-007 fixes the staircase's invisible room-wide walking slope. Elevated support must follow the visible steps and landings, with real floor-level traversal beside and beneath them, consistent companion placement, and landing-aware recursive transitions. This remains queued.
+
+### 2026-11-02 — D-001 through D-007 implemented
+
+The full requested batch is implemented. Curved rooted growth replaces the spikes; tables have no helper prose; angel contact reveals buried architecture and leaves a persistent trace; throne claims and gaze-directed wait spots are saved; attention is automatic with its whoomp at 20% dwell; real stair support replaces the invisible room-wide slope.
+
+Strict compilation and 39 tests passed. Browser checks covered root appearance, stair edges and underpasses, an enthroned disciple refusing recall, solitude release through a private time-advance fixture, the chthonic chamber, and instruction-free desktop/phone-width tables. See docs/DEFECTS.md for per-item evidence and limitations. Publication confirmation follows in docs/RELEASE.md.

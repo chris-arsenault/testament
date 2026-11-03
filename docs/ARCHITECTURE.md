@@ -29,3 +29,11 @@ Use Node 24 and pnpm 11: `pnpm install`, `pnpm build`, `pnpm test`, `pnpm dev`. 
 ## Verification boundaries
 
 Simulation tests exercise collision, attention, cat sequencing, angel topology, all twelve rules, all 220 three-member parties, save recovery, deterministic state and thematic coverage. Combination enumeration verifies finite state and valid exits; it does not establish subjective balance or every emergent experience. Browser checks cover rendering, controls, menu, accessible attention, transitions, and errors. Physical touch-device performance and subjective listening require separate human validation.
+
+## Defect-batch additions
+
+`space.ts` now owns tread dimensions, supporting surfaces, clearance and reachable gaze projection. Simulation owns vertical position/velocity; rendering reads them. `attention.ts` tracks one physical target per dwell episode, with a 20% audio event and explicit interruption. Saved wait spots include room, foot position and optional throne claim/solitude. `roots.ts` builds column-rooted branching curves. `resonance.ts` synthesizes the early cue and deeper contact response. Additive version-2 save validation migrates older records to supported surfaces and safe waiting positions.
+
+A throne claimant needs 45 seconds away from the player, scaled by the number of waiting occupants. Returning before readiness resets solitude. Active puzzle time counts as absence when the player is in another room; the pause menu does not. A claimed seat remains rendered until its occupant is recalled.
+
+Angel contact has a 14-second cooldown, a nine-second presentation phase, a persistent scar and a new left-hand garden connection to the crypt. Physical movement remains recoverable during the visual descent.

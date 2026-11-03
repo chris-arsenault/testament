@@ -39,3 +39,13 @@ This release receipt was written after publication; it does not alter the deploy
 Published November 2, 2026 (America/Phoenix), source `0a85d8fa3a7a66f23aeac4e86c2e406dafc24b3a`, deployment `appgdep_6ae93c3dfa4c8191ae6143f6c4212cd1` (succeeded).
 
 Adds two locally bundled Dürer engravings with image-driven bump relief, a contextual WEB scripture subtitle narrator, unreliable room-entry catalogues, cinematic framing, and cat/angel cast cards. Credits are available through the settings menu. Strict compilation and all 16 tests passed; live room-entry text and local desktop/mobile rendering were verified. Source provenance and quotation references are recorded in ART_AND_NARRATION.md.
+
+## Version 6 — Mouse and volume
+
+Published from `00ed67e01c0349816a6ea217516f87139c354714`, deployment `appgdep_6ae9408635788191bd9e78f7690b99ae` (succeeded). Adds desktop Pointer Lock with automatic no-hold look fallback where the host rejects capture, an Escape pause fix, and one master volume slider.
+
+## Version 7 — The five tables
+
+Published from `c273f020199d17d385c7c5c58edf44efb4bc66a9`, deployment `appgdep_6ae944b43534819180887977c7ab0c26` (succeeded), November 2, 2026 (America/Phoenix).
+
+Every room has a different optional table puzzle with persistent state, a distorted scripture/political transmission, and a detuned canticle. Attempt duration increases rustling whispers and falling disciple text, with no time limit or progression reward. All 26 tests passed. All five puzzles were completed through browser controls; the published nave table was opened through normal traversal. Phone-width glyph rendering, saved completion, and Escape exit were checked. See PUZZLE_TABLES.md for verification limits and architecture.

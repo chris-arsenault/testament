@@ -1,9 +1,10 @@
+import { interruptAttention } from './attention.js';
 import { PuzzleUI } from './puzzle-ui.js';
 import { captureMouse, lookDelta, volumeMix } from './look.js';
 import { Narrator, roomRecords } from './narrative.js';
 import { Cathedral } from './rendering.js';
 import { Sound } from './audio.js';
-import { initial, restore, tick, walk, select, separate } from './world.js';
+import { initial, restore, tick, walk, select, separate, touchAngel, updateWaiting } from './world.js';
 import { witnesses } from './content.js';
 const $ = (id) => document.getElementById(id);
 const canvas = $('world'), menu = $('menu');
@@ -25,7 +26,7 @@ catch (e) {
 const narrator = new Narrator();
 let roomTime = 0, castTime = 0;
 const audio = new Sound(), keys = new Set();
-let active = false, started = false, last = performance.now(), saveTime = 0, captionTime = 0, drag = false, focusToggle = false, eventCount = 0, autoWalk = false, lastSpace = w.place, lastTurns = w.turns;
+let active = false, started = false, last = performance.now(), saveTime = 0, captionTime = 0, drag = false, eventCount = 0, autoWalk = false, lastSpace = w.place, lastTurns = w.turns;
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 let volume = 65;
 try {
@@ -61,7 +62,7 @@ document.addEventListener('pointerlockchange', () => { const locked = document.p
 document.addEventListener('pointerlockerror', fallbackLook);
 document.addEventListener('mousemove', e => { if (active && (document.pointerLockElement === canvas || (softLook && e.target === canvas)))
     rotate(e.movementX, e.movementY); });
-const puzzles = new PuzzleUI(() => w, audio.effects, () => { active = false; softLook = false; canvas.style.cursor = ''; keys.clear(); autoWalk = false; drag = false; if (document.pointerLockElement === canvas)
+const puzzles = new PuzzleUI(() => w, audio.effects, () => { active = false; interruptAttention(w); softLook = false; canvas.style.cursor = ''; keys.clear(); autoWalk = false; drag = false; if (document.pointerLockElement === canvas)
     document.exitPointerLock(); audio.pause(true); document.body.classList.remove('cinematic'); $('roomCard').classList.remove('visible'); $('narrator').classList.remove('speaking'); $('puzzleUse').classList.add('hidden'); }, (lock) => { active = started; keys.clear(); audio.pause(false); last = performance.now(); if (lock)
     capture(); }, reduced);
 $('puzzleUse').onclick = () => { if (active && puzzles.near())
@@ -89,7 +90,7 @@ function roster() { const r = $('roster'); r.replaceChildren(); for (const witne
     r.append(b);
 } }
 function pause() { if (menu.open || puzzles.isOpen)
-    return; active = false; softLook = false; canvas.style.cursor = ''; if (document.pointerLockElement === canvas)
+    return; active = false; interruptAttention(w); softLook = false; canvas.style.cursor = ''; if (document.pointerLockElement === canvas)
     document.exitPointerLock(); autoWalk = false; keys.clear(); drag = false; audio.pause(true); roster(); menu.showModal(); menu.tabIndex = -1; menu.focus(); menu.scrollTop = 0; save(); }
 function resume(lock = true) { menu.close(); active = started; audio.pause(false); keys.clear(); last = performance.now(); if (lock)
     capture(); }
@@ -97,7 +98,7 @@ $('enter').onclick = () => { started = true; active = true; capture(); $('veil')
 $('menuButton').onclick = pause;
 $('resume').onclick = () => resume();
 menu.addEventListener('cancel', e => { e.preventDefault(); resume(false); });
-$('home').onclick = () => { w.place = 'nave'; w.x = 0; w.z = 12; w.yaw = 0; w.pitch = 0; w.cooldown = 2; save(); resume(); };
+$('home').onclick = () => { w.place = 'nave'; w.x = 0; w.y = 0; w.vy = 0; w.z = 12; w.yaw = 0; interruptAttention(w); w.pitch = 0; w.cooldown = 2; save(); resume(); };
 let resetArmed = false;
 $('new').onclick = () => { if (!resetArmed) {
     resetArmed = true;
@@ -111,16 +112,22 @@ addEventListener('keydown', e => { if (puzzles.isOpen)
     pause();
     return;
 } if (!active || e.target instanceof HTMLInputElement)
-    return; if (e.code === 'KeyE' && !e.repeat && puzzles.near()) {
-    e.preventDefault();
-    puzzles.open();
-    return;
-} if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyF', 'Space'].includes(e.code)) {
+    return; if (e.code === 'KeyE' && !e.repeat) {
+    if (puzzles.near()) {
+        e.preventDefault();
+        puzzles.open();
+        return;
+    }
+    if (touchAngel(w)) {
+        e.preventDefault();
+        return;
+    }
+} if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space'].includes(e.code)) {
     e.preventDefault();
     keys.add(e.code);
 } if (!e.repeat && e.code === 'KeyR')
     autoWalk = !autoWalk; if (!e.repeat && ['Digit1', 'Digit2', 'Digit3'].includes(e.code))
-    separate(w, Number(e.code.slice(-1)) - 1); });
+    separate(w, Number(e.code.slice(-1)) - 1, renderer.waitTarget(w)); });
 addEventListener('keyup', e => keys.delete(e.code));
 addEventListener('blur', () => { if (active)
     pause(); });
@@ -142,14 +149,15 @@ canvas.onpointermove = e => { if (e.pointerType !== 'mouse' && drag && active)
     rotate(e.movementX, e.movementY); };
 document.querySelectorAll('[data-key]').forEach(b => { b.onpointerdown = e => { e.preventDefault(); keys.add(b.dataset.key); b.setPointerCapture(e.pointerId); }; b.onpointerup = b.onpointercancel = () => keys.delete(b.dataset.key); });
 document.querySelectorAll('[data-companion]').forEach(b => b.onclick = () => { if (active)
-    separate(w, Number(b.dataset.companion)); });
-$('attend').onclick = () => { focusToggle = !focusToggle; $('attend').textContent = focusToggle ? 'Release' : 'Attend'; };
+    separate(w, Number(b.dataset.companion), renderer.waitTarget(w)); });
 const names = { nave: 'THE HOUSE OF BREATH', stair: 'THE ASCENT WITHIN', garden: 'WHAT THE LEAVES REMEMBER', water: 'THE WATER ABOVE THE WATER', crypt: 'THE NAMES BENEATH THE NAME' };
 function frame(now) {
     requestAnimationFrame(frame);
     const dt = Math.min(.05, (now - last) / 1000);
     last = now;
     puzzles.update(dt);
+    if (puzzles.isOpen && !document.hidden)
+        updateWaiting(w, dt);
     $('puzzleUse').classList.toggle('hidden', !active || !puzzles.near());
     if (active) {
         let forward = (keys.has('KeyW') || autoWalk ? 1 : 0) - (keys.has('KeyS') ? 1 : 0), side = (keys.has('KeyD') ? 1 : 0) - (keys.has('KeyA') ? 1 : 0);
@@ -159,20 +167,26 @@ function frame(now) {
         w.yaw += ((keys.has('ArrowLeft') ? 1 : 0) - (keys.has('ArrowRight') ? 1 : 0)) * dt * 1.5;
         w.pitch = Math.max(-1.2, Math.min(1.2, w.pitch + ((keys.has('ArrowUp') ? 1 : 0) - (keys.has('ArrowDown') ? 1 : 0)) * dt));
         walk(w, (-Math.sin(w.yaw) * forward + Math.cos(w.yaw) * side) * dt * 3.5, (-Math.cos(w.yaw) * forward - Math.sin(w.yaw) * side) * dt * 3.5);
-        tick(w, dt, { moving: !!(forward || side), target: renderer.target(w), focus: focusToggle || keys.has('KeyF') });
+        tick(w, dt, { moving: !!(forward || side), ...renderer.target(w) });
         audio.update(w);
         if (w.events.length) {
             const e = w.events.shift();
             audio.event(e);
-            narrator.event(e);
-            if (e.kind === 'cat')
-                cast('STARRING', 'EVE', 'AS HERSELF / BEFORE HERSELF');
-            if (e.kind === 'angel')
-                cast('SPECIAL APPEARANCE', 'THE MANY-EYED', 'NO RECORD OF ARRIVAL');
-            $('caption').textContent = e.text;
-            captionTime = 8;
-            eventCount++;
-            $('soundCaption').textContent = e.kind === 'cat' ? '[a purr behind the stone]' : e.kind === 'angel' ? '[a thousand small lids opening]' : '[the building answers, far below]';
+            if (e.text) {
+                narrator.event(e);
+                if (e.kind === 'cat')
+                    cast('STARRING', 'EVE', 'AS HERSELF / BEFORE HERSELF');
+                if (e.kind === 'angel')
+                    cast('SPECIAL APPEARANCE', 'THE MANY-EYED', 'NO RECORD OF ARRIVAL');
+                $('caption').textContent = e.text;
+                captionTime = 8;
+                eventCount++;
+                $('soundCaption').textContent = e.kind === 'cat' ? '[a purr behind the stone]' : e.kind === 'angel' ? '[a thousand small lids opening]' : '[the building answers, far below]';
+            }
+            else if (e.kind === 'gaze-cue')
+                $('soundCaption').textContent = '[a low rush of air]';
+            else if (e.kind === 'chthonic')
+                $('soundCaption').textContent = '[stone resounds below]';
         }
         captionTime -= dt;
         if (captionTime <= 0) {

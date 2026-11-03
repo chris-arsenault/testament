@@ -4,7 +4,7 @@ import {witnesses} from '../dist/app/content.js';import {phenomena} from '../dis
 const run=(w,seconds,obs={moving:false,target:'none',focus:false})=>{for(let i=0;i<seconds*20;i++)tick(w,.05,obs);};
 test('cat passage requires approach, absence of gaze, then time',()=>{const w=initial();w.x=5;w.z=-5;run(w,9,{moving:false,target:'cat',focus:true});assert.equal(w.catPhase,1);assert.equal(w.passage,false);run(w,8);assert.equal(w.catPhase,3);assert.equal(w.passage,true);w.cooldown=0;cross(w,'low');assert.equal(w.place,'crypt');});
 test('stairs persist ascent, stopping and descent differently',()=>{const w=initial();w.place='stair';cross(w,'front');assert.equal(w.turns,1);assert.equal(w.memory,1);run(w,9);assert.equal(w.passage,true);w.cooldown=0;cross(w,'left');assert.equal(w.place,'nave');assert.equal(w.memory,0);});
-test('angel alters topology and preserves reality on leaving',()=>{const w=initial();w.place='garden';w.z=-4;run(w,12,{moving:false,target:'angel',focus:true});assert.ok(w.angel>.9);assert.ok(w.memory>0);assert.equal(destination(w,'front'),'water');w.cooldown=0;cross(w,'front');assert.equal(w.place,'water');assert.equal(w.reality,1);});
+test('angel alters topology and preserves reality on leaving',()=>{const w=initial();w.place='garden';w.z=0;run(w,12,{moving:false,target:'angel',focus:true});assert.ok(w.angel>.9);assert.ok(w.memory>0);assert.equal(destination(w,'front'),'water');w.cooldown=0;cross(w,'front');assert.equal(w.place,'water');assert.equal(w.reality,1);});
 test('water has an ordinary waiting route with no mandatory companion',()=>{const w=initial();select(w,[]);w.place='water';w.z=3;walk(w,0,-2);assert.equal(w.z,3);run(w,8);assert.equal(w.bridge,true);walk(w,0,-2);assert.equal(w.z,1);});
 test('all twelve rules produce state or topology consequences',()=>{for(const id of witnesses.map(x=>x.id)){const w=initial();select(w,[id]);w.z=-8;w.absence=1;let check;
 switch(id){case 'peter':w.x=11;w.z=0;run(w,4,{moving:false,target:'threshold',focus:true});check=w.anchored;break;
@@ -12,8 +12,8 @@ case 'andrew':case 'matthew':w.place='water';run(w,1);check=w.bridge;break;
 case 'james':run(w,7);check=w.ceiling&&w.angel>0;break;
 case 'john':w.place='garden';run(w,1);check=w.bridge&&w.roots;break;
 case 'philip':run(w,4,{moving:false,target:'threshold',focus:true});check=w.passage&&w.reality===2;break;
-case 'bartholomew':run(w,4,{moving:false,target:'stone',focus:true});check=w.skin&&w.passage;break;
-case 'thomas':run(w,4,{moving:false,target:'stone',focus:true});check=w.stable;break;
+case 'bartholomew':run(w,5,{moving:false,target:'stone',focus:true});check=w.skin&&w.passage;break;
+case 'thomas':run(w,5,{moving:false,target:'stone',focus:true});check=w.stable;break;
 case 'alphaeus':run(w,1);check=w.passage;break;
 case 'jude':run(w,1);check=w.roots&&w.passage;break;
 case 'simon':w.place='crypt';run(w,4);check=!w.throne;break;
@@ -24,3 +24,4 @@ test('save roundtrip, malformed data and old versions recover',()=>{const w=init
 test('66-book thematic coverage has no duplicates and every phenomenon changes state',()=>{const books=phenomena.flatMap(p=>p.books);assert.equal(books.length,66);assert.equal(new Set(books).size,66);for(const p of phenomena){const w=initial();const before=JSON.stringify(w);p.effect(w);assert.notEqual(JSON.stringify(w),before,p.id);}});
 test('movement collides with pillars and uncertain stone; Thomas removes screen',()=>{const w=initial();w.x=7;w.z=2;walk(w,0,-1.5);assert.equal(w.z,2);w.x=0;w.z=-1;walk(w,0,-1);assert.equal(w.z,-1);w.stable=true;walk(w,0,-1);assert.equal(w.z,-2);});
 test('simulation is deterministic for matching input and saves',()=>{const a=initial(),b=initial();for(let i=0;i<1000;i++){const obs={moving:i%3===0,target:i%4?'cat':'threshold',focus:true};tick(a,.05,obs);tick(b,.05,obs);}assert.deepEqual(a,b);});
+
