@@ -12,9 +12,9 @@ Transforms are staged behind a brief dark threshold blink. This is authored non-
 
 ## Rule contracts and precedence
 
-Tick order: time and attention → companion rules → cat → angel → persistent garden → thematic phenomena. Geometry consults the resulting state. A rule's `seen` key limits its initial disclosure; consequences persist. The angel can change reality repeatedly with an eight-second cooldown. Thomas stabilization persists; Peter anchoring is proximity-dependent. Open connections always retain an escape to the nave; water can be crossed around its perimeter or divided through waiting without a companion.
+Tick order: time, support and attention → phased witness encounters → clearance recovery → cat and angel → currents and cat links → thematic phenomena. Geometry consults the resulting state. Ordinary thematic disclosures retain their `seen` keys. Witness encounters use independent phase clocks, action gates, episode latches, and cooldowns. Thomas's nave stabilization persists; Peter captures the addresses of a room's doors for a finite interval. Water can be crossed around its perimeter or divided through waiting without a companion.
 
-Observation targets are geometrically determined. The broad attention cone and automatic-attention setting avoid requiring precise aim. Controls accept keyboard, pointer dragging, and touch buttons. R toggles continuous walking.
+Observation targets are geometrically determined. The broad attention cone and automatic dwell avoid requiring precise aim. Mouse capture, its automatic in-app fallback, keyboard looking, touch dragging and touch buttons remain supported. R toggles continuous walking.
 
 ## Saves
 
@@ -37,3 +37,13 @@ Simulation tests exercise collision, attention, cat sequencing, angel topology, 
 A throne claimant needs 45 seconds away from the player, scaled by the number of waiting occupants. Returning before readiness resets solitude. Active puzzle time counts as absence when the player is in another room; the pause menu does not. A claimed seat remains rendered until its occupant is recalled.
 
 Angel contact has a 14-second cooldown, a nine-second presentation phase, a persistent scar and a new left-hand garden connection to the crypt. Physical movement remains recoverable during the visual descent.
+
+## Independent witness channels
+
+`witnesses.ts` owns pure encounter state. Audio, visual and world phases have different start times; some world phases require movement, stillness, looking away, or physical distance. `witness-audio.ts` synthesizes twelve original stereo responses into the existing effects master gain. `witness-visuals.ts` consumes visual clocks independently and builds local geometry plus a low-opacity interference shader. Physical manifestations alter support, gravity, collision, stride, contact and transport, rather than merely duplicating permanent flags.
+
+`languages.ts` holds the remembered menu's English, French and Portuguese variants. The `tongue` index is validated and saved. `puzzle-phenomena.ts` creates a disposable contradictory water ledger: the real board is never overwritten. That layer expires during puzzle interaction; the ordinary table remains solvable. Seven copied cats are actual gaze targets linked to other cat positions.
+
+Route precedence is captured Peter addresses, Judas's abandoned body, Simon's absent company, Philip's permutation, then the ordinary topology. Existing flags retain their thematic meaning but cannot suppress the new encounters. A local waiting companion can participate within seven metres; distant waiting companions do not provide normal local presence. Judas intentionally acts through absence.
+
+Transient manifestations are cleared on restore. Clearance recovery moves a body out of returning stone and preserves small stature until there is enough room to grow. Pending local responses cancel when their room or source is lost. See `WITNESS_PHENOMENA.md` for the authored trigger matrix and verification receipt.

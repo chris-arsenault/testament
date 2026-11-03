@@ -1,10 +1,11 @@
 import { attend, interruptAttention } from './attention.js';
-import { gazeLanding, obstructed, stepSupport, support } from './space.js';
+import { gazeLanding, obstructed, stepSupport, support, groundAt, settleWitnessBody } from './space.js';
 import { witnesses, whispers } from './content.js';
 import { evolve } from './phenomena.js';
+import { tickWitnesses, manifestation, redirectThreshold, witnessStride, witnessCurrent, catCopies } from './witnesses.js';
 export const THRONE_SOLITUDE = 45;
 export const places = ['nave', 'stair', 'garden', 'water', 'crypt'];
-export const initial = () => ({ version: 2, time: 0, place: 'nave', x: 0, y: 0, vy: 0, z: 12, yaw: 0, pitch: 0, party: ['thomas', 'peter', 'judas'], left: [], waiting: {}, waitSpots: {}, gazeId: '', gazeKind: 'none', gazeCue: false, gazeFired: false, gazeApplied: false, gazeLost: 0, underworld: 0, buried: false, angelCooldown: 0, angelInside: false, turns: 0, returns: 0, memory: 0, absence: 0, still: 0, attention: 0, angel: 0, reality: 0, catPhase: 0, catTimer: 0, passage: false, anchored: false, stable: false, bridge: false, ceiling: false, skin: false, roots: false, throne: true, letter: 0, seed: 1977, events: [], seen: [], cooldown: 0, distance: 0 });
+export const initial = () => ({ version: 2, tongue: 0, manifestations: {}, time: 0, place: 'nave', x: 0, y: 0, vy: 0, z: 12, yaw: 0, pitch: 0, party: ['thomas', 'peter', 'judas'], left: [], waiting: {}, waitSpots: {}, gazeId: '', gazeKind: 'none', gazeCue: false, gazeFired: false, gazeApplied: false, gazeLost: 0, underworld: 0, buried: false, angelCooldown: 0, angelInside: false, turns: 0, returns: 0, memory: 0, absence: 0, still: 0, attention: 0, angel: 0, reality: 0, catPhase: 0, catTimer: 0, passage: false, anchored: false, stable: false, bridge: false, ceiling: false, skin: false, roots: false, throne: true, letter: 0, seed: 1977, events: [], seen: [], cooldown: 0, distance: 0 });
 export function present(w, id) { return w.party.includes(id) && !w.left.includes(id); }
 export function emit(w, kind, text) { w.events.push({ kind, text }); if (w.events.length > 12)
     w.events.shift(); }
@@ -48,7 +49,7 @@ export function separate(w, index, target) {
                     break;
                 const a = attempt * 2.4, x = point.x + Math.cos(a) * .7, z = point.z + Math.sin(a) * .7;
                 if (!obstructed(w, x, z, point.y))
-                    point = { x, y: support(w.place, x, z, point.y + .32), z };
+                    point = { x, y: groundAt(w, x, z, point.y + .32), z };
             }
         }
         w.left.push(id);
@@ -73,7 +74,7 @@ export function updateWaiting(w, dt) { const occupants = Object.values(w.waitSpo
     if (before < THRONE_SOLITUDE && spot.alone >= THRONE_SOLITUDE)
         emit(w, 'throne-weariness', 'The room is larger without you.');
 } }
-export function touchAngel(w) { if (w.place !== 'garden' || w.angel < .25 || w.angelCooldown > 0 || Math.hypot(w.x, w.z + 8) > 4)
+export function touchAngel(w) { if (w.place !== 'garden' || !!manifestation(w, 'john') || w.angel < .25 || w.angelCooldown > 0 || Math.hypot(w.x, w.z + 8) > 4)
     return false; w.underworld = 9; w.buried = true; w.angelCooldown = 14; w.memory++; w.reality = 2; w.roots = true; emit(w, 'chthonic', ''); return true; }
 export function random(w) { w.seed = (Math.imul(w.seed, 1664525) + 1013904223) >>> 0; return w.seed / 4294967296; }
 export function tick(w, dt, o) {
@@ -86,51 +87,9 @@ export function tick(w, dt, o) {
     w.underworld = Math.max(0, w.underworld - dt);
     w.angelCooldown = Math.max(0, w.angelCooldown - dt);
     attend(w, dt, o.target, o.targetId || w.place + ':' + o.target);
-    const threshold = o.target === 'threshold' && w.gazeFired;
-    if (present(w, 'peter') && threshold)
-        w.anchored = true;
-    if (!present(w, 'peter') || Math.min(Math.hypot(w.x, w.z + 16), Math.hypot(w.x - 12, w.z), Math.hypot(w.x + 12, w.z)) > 9)
-        w.anchored = false;
-    if (present(w, 'thomas') && w.gazeFired && o.target === 'stone') {
-        w.stable = true;
-        once(w, 'stable', witnesses[7].line);
-    }
-    if (w.place === 'water' && (present(w, 'andrew') || present(w, 'matthew'))) {
-        w.bridge = true;
-        once(w, 'bridge', present(w, 'andrew') ? witnesses[1].line : witnesses[6].line);
-    }
-    if (present(w, 'james') && w.still > 6) {
-        w.ceiling = true;
-        w.angel = Math.min(1, w.angel + dt * .1);
-        once(w, 'ceiling', witnesses[2].line);
-    }
-    if (present(w, 'bartholomew') && w.gazeFired) {
-        w.skin = true;
-        w.passage = true;
-        once(w, 'skin', witnesses[5].line);
-    }
-    if (present(w, 'alphaeus') && w.place === 'nave') {
-        w.passage = true;
-        once(w, 'small', witnesses[8].line);
-    }
-    if (present(w, 'jude') && w.absence > 0) {
-        w.roots = true;
-        w.passage = true;
-        once(w, 'roots', witnesses[9].line);
-    }
-    if (present(w, 'simon') && w.place === 'crypt' && w.still > 3) {
-        w.throne = false;
-        once(w, 'throne', witnesses[10].line);
-    }
-    if (present(w, 'philip') && threshold) {
-        w.passage = true;
-        w.reality = 2;
-        once(w, 'reflection', witnesses[4].line);
-    }
-    if (w.left.includes('judas')) {
-        w.passage = true;
-        once(w, 'silver', witnesses[11].line);
-    }
+    tickWitnesses(w, dt, door => destination(w, door));
+    settleWitnessBody(w);
+    w.anchored = !!manifestation(w, 'peter');
     if (w.place === 'stair' && w.still > 8) {
         once(w, 'rest', whispers.rest);
         w.passage = true;
@@ -163,11 +122,11 @@ export function tick(w, dt, o) {
             if (w.angel > .2)
                 once(w, 'angel', whispers.angel);
         }
-        const inside = w.angel > .25 && Math.hypot(w.x, w.z + 8) < 2.35;
+        const inside = !manifestation(w, 'john') && w.angel > .25 && Math.hypot(w.x, w.z + 8) < 2.35;
         if (inside && !w.angelInside)
             touchAngel(w);
         w.angelInside = inside;
-        if (w.angel > .6 && o.target === 'angel' && w.gazeFired && !w.gazeApplied && w.cooldown === 0) {
+        if (!manifestation(w, 'john') && w.angel > .6 && o.target === 'angel' && w.gazeFired && !w.gazeApplied && w.cooldown === 0) {
             w.gazeApplied = true;
             if (!touchAngel(w)) {
                 w.reality = (w.reality + 1) % 3;
@@ -176,19 +135,29 @@ export function tick(w, dt, o) {
                 emit(w, 'reality', whispers.choice);
             }
         }
-        if (present(w, 'john') && near) {
-            w.bridge = true;
-            w.roots = true;
-            once(w, 'mercy', witnesses[3].line);
-        }
     }
     if (w.turns >= 2 && w.absence > 0) {
         w.roots = true;
         once(w, 'garden', whispers.garden);
     }
+    const current = witnessCurrent(w, dt);
+    if (current)
+        walk(w, 0, current, true);
+    if (w.gazeFired && !w.gazeApplied && w.gazeId.includes(':cat-copy-') && manifestation(w, 'andrew')) {
+        const copies = catCopies(w), i = Number(w.gazeId.split('-').at(-1)), point = copies[(i + 3) % copies.length];
+        if (point) {
+            w.x = point.x;
+            w.z = point.z;
+            w.y = groundAt(w, w.x, w.z);
+            w.vy = 0;
+            w.gazeApplied = true;
+            emit(w, 'cat-link', '');
+        }
+    }
     evolve(w);
 }
-export function destination(w, door) {
+export function destination(w, door) { return redirectThreshold(w, door, d => baseDestination(w, d)); }
+function baseDestination(w, door) {
     if (door === 'low')
         return w.left.includes('judas') ? 'water' : 'crypt';
     if (w.place === 'stair')
@@ -216,7 +185,7 @@ export function cross(w, door) {
         return false;
     if (door === 'low' && !w.passage)
         return false;
-    const from = w.place, to = destination(w, door);
+    const from = w.place, to = destination(w, door), judas = !manifestation(w, 'peter') && manifestation(w, 'judas') && w.waitSpots.judas;
     if (from === 'stair' && door === 'front') {
         w.turns++;
         w.memory++;
@@ -234,25 +203,30 @@ export function cross(w, door) {
             emit(w, 'return', whispers.return);
     }
     w.place = to;
-    w.x = 0;
-    w.y = 0;
+    w.x = judas ? Math.max(-10, Math.min(10, judas.x)) : 0;
+    w.z = judas ? Math.max(-14, Math.min(14, judas.z + 2)) : 12;
+    w.y = groundAt(w, w.x, w.z, judas ? judas.y + .32 : 0);
     w.vy = 0;
-    w.z = 12;
-    w.yaw = 0;
+    w.yaw = judas ? Math.PI : 0;
+    if (judas)
+        w.manifestations.judas.remaining = 0;
     w.still = 0;
     interruptAttention(w);
     w.cooldown = 1.3;
     w.letter = (w.letter + 1 + w.left.length) % 12;
     return true;
 }
-export function walk(w, dx, dz) {
+export function walk(w, dx, dz, carried = false) {
+    const stride = carried ? 1 : witnessStride(w);
+    dx *= stride;
+    dz *= stride;
     const oldX = w.x, oldZ = w.z;
     let nx = w.x + dx, nz = w.z + dz;
     if (!obstructed(w, nx, w.z))
         w.x = Math.max(-12, Math.min(12, nx));
     if (!obstructed(w, w.x, nz))
         w.z = Math.max(-16.5, Math.min(16, nz));
-    const height = support(w.place, w.x, w.z, w.y + .32);
+    const height = groundAt(w, w.x, w.z, w.y + .32);
     if (height > w.y && w.vy <= 0) {
         w.y = height;
         w.vy = 0;
@@ -274,7 +248,7 @@ export function restore(raw) {
         if (s?.version !== 2 || !places.includes(s.place))
             return base;
         for (const key of Object.keys(base)) {
-            if (['events', 'party', 'left', 'seen', 'waiting', 'waitSpots'].includes(key))
+            if (['events', 'party', 'left', 'seen', 'waiting', 'waitSpots', 'manifestations'].includes(key))
                 continue;
             const v = s[key], b = base[key];
             if (typeof v === typeof b && (typeof v !== 'number' || Number.isFinite(v)))
@@ -282,6 +256,7 @@ export function restore(raw) {
         }
         base.x = Math.max(-10, Math.min(10, base.x));
         base.z = Math.max(-14, Math.min(14, base.z));
+        base.tongue = ((Math.trunc(base.tongue) % 3) + 3) % 3;
         base.pitch = Math.max(-1.2, Math.min(1.2, base.pitch));
         base.angel = Math.max(0, Math.min(1, base.angel));
         base.reality = ((Math.trunc(base.reality) % 3) + 3) % 3;
@@ -306,6 +281,7 @@ export function restore(raw) {
         base.angelInside = false;
         base.angelCooldown = 0;
         base.cooldown = 1;
+        settleWitnessBody(base, true);
         return base;
     }
     catch {

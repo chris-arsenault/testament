@@ -259,3 +259,13 @@ D-007 fixes the staircase's invisible room-wide walking slope. Elevated support 
 The full requested batch is implemented. Curved rooted growth replaces the spikes; tables have no helper prose; angel contact reveals buried architecture and leaves a persistent trace; throne claims and gaze-directed wait spots are saved; attention is automatic with its whoomp at 20% dwell; real stair support replaces the invisible room-wide slope.
 
 Strict compilation and 39 tests passed. Browser checks covered root appearance, stair edges and underpasses, an enthroned disciple refusing recall, solitude release through a private time-advance fixture, the chthonic chamber, and instruction-free desktop/phone-width tables. See docs/DEFECTS.md for per-item evidence and limitations. Publication confirmation follows in docs/RELEASE.md.
+
+### 2026-11-02 — Defect batch published
+
+Version 8 deployed successfully from `75d076f237313b94dafea9e58a53a484f05a6dff`. The public entry and instruction-free table were verified. D-001 through D-007 are closed with evidence in docs/DEFECTS.md. This post-publication receipt changes documentation only.
+
+### 2026-11-02 — Witness behavior revision
+
+All twelve now have distinct audio, visual, and world/interaction consequences. The channels have independent timings and second-action gates, reflecting the user's refinement that they should usually occur at different moments. The revision includes linked cat copies, remembered menu language, a temporarily impossible borrowed glyph ledger, and real changes to gravity, clearance, supporting surfaces, contact, and room connections. No new player-facing ability explanations or settings were added.
+
+The durable trigger matrix, architecture contracts, acceptance checklist, and verification evidence are in docs/WITNESS_PHENOMENA.md. Strict compilation and 57 automated checks pass. Local browser checks covered every witness renderer, the production entry/menu, cat replication, French actions, and contradictory clues clearing to the canonical puzzle. Publication receipt follows in docs/RELEASE.md.

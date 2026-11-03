@@ -1,16 +1,18 @@
+import {WitnessVisuals} from './witness-visuals.js';
+import {manifestation,witnessVisual,witnessBodyHeight,catCopies} from './witnesses.js';
 import {returningRoots} from './roots.js';
-import {stairs,support,gazeLanding,type Point} from './space.js';
+import {stairs,support,groundAt,gazeLanding,type Point} from './space.js';
 import type {AttentionKind} from './attention.js';
 import {Relics} from './relics.js';
 import * as T from '../three.module.js';
 import {present,throneVisible,type World} from './world.js';
 export class Cathedral {
- burial:any;scar:any;table:any; relics:Relics; scene:any; camera:any; renderer:any; root:any; cat:any; angel:any; eyes:any; wings:any; water:any; bridge:any; screen:any; roots:any; ceiling:any; throne:any; low:any; companions:any[]=[];letter:any;light:any; rose:any;dust:any; clock=0;lastPlace='';materials:any[]=[];
+ effects:WitnessVisuals;columnMats:any[]=[];copies:any[]=[];pupils:any;burial:any;scar:any;table:any; relics:Relics; scene:any; camera:any; renderer:any; root:any; cat:any; angel:any; eyes:any; wings:any; water:any; bridge:any; screen:any; roots:any; ceiling:any; throne:any; low:any; companions:any[]=[];letter:any;light:any; rose:any;dust:any; clock=0;lastPlace='';materials:any[]=[];
  constructor(canvas:HTMLCanvasElement){
   this.renderer=new T.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));this.renderer.setSize(innerWidth,innerHeight);this.renderer.outputColorSpace=T.SRGBColorSpace;this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.15;
   this.scene=new T.Scene();this.scene.background=new T.Color('#171c22');this.scene.fog=new T.FogExp2('#171c22',.019);this.camera=new T.PerspectiveCamera(68,innerWidth/innerHeight,.08,160);this.camera.rotation.order='YXZ';
   this.scene.add(new T.HemisphereLight(0xc8dfeb,0x171519,2.1));this.light=new T.DirectionalLight(0xffd8a0,3);this.light.position.set(-8,18,5);this.scene.add(this.light);const fill=new T.PointLight(0xa8d5df,35,30);fill.position.set(0,6,-8);this.scene.add(fill);
-  this.root=new T.Group();this.scene.add(this.root);this.build();this.relics=new Relics(this.root);for(const material of this.materials){material.bumpMap=this.relics.eden.bumpMap;material.bumpScale=.025;material.needsUpdate=true;}addEventListener('resize',()=>{this.renderer.setSize(innerWidth,innerHeight);this.camera.aspect=innerWidth/innerHeight;this.camera.updateProjectionMatrix();});
+  this.root=new T.Group();this.scene.add(this.root);this.build();this.relics=new Relics(this.root);this.effects=new WitnessVisuals(this);for(const material of this.materials){material.bumpMap=this.relics.eden.bumpMap;material.bumpScale=.025;material.needsUpdate=true;}addEventListener('resize',()=>{this.renderer.setSize(innerWidth,innerHeight);this.camera.aspect=innerWidth/innerHeight;this.camera.updateProjectionMatrix();});
  }
  mat(color:string,metalness=0,emissive?:string){return new T.MeshStandardMaterial({color,roughness:.77,metalness,emissive:emissive||'#000000',emissiveIntensity:.5});}
  mesh(geo:any,mat:any,x=0,y=0,z=0,parent=this.root){const m=new T.Mesh(geo,mat);m.position.set(x,y,z);parent.add(m);return m;}
@@ -24,7 +26,7 @@ export class Cathedral {
   for(const x of [-13,13])for(const z of [-10,10])this.box(x,6,z,.7,12,12,stone);
   for(const z of [-18,18])for(const x of [-9,9])this.box(x,7,z,10,14,.8,stone);
   for(const x of [-7,7])for(const z of [-10,0,10]){
-   this.mesh(new T.CylinderGeometry(.62,.84,11,12),stone,x,5.5,z);this.box(x,.2,z,2,.4,2,dark);this.box(x,10.6,z,1.8,.7,1.8,gold);
+   const columnMat=stone.clone();columnMat.transparent=true;this.columnMats.push(columnMat);this.mesh(new T.CylinderGeometry(.62,.84,11,12),columnMat,x,5.5,z);this.box(x,.2,z,2,.4,2,dark);this.box(x,10.6,z,1.8,.7,1.8,gold);
    for(const offset of [-.32,.32])this.mesh(new T.CylinderGeometry(.12,.12,11,8),white,x+offset,5.5,z+.48);
   }
   for(const z of [-10,0,10]){const arch=this.mesh(new T.TorusGeometry(7,.22,10,64,Math.PI),stone,0,10.4,z);arch.scale.y=1.15;this.box(0,17.9,z,.16,.8,.5,gold);}
@@ -49,7 +51,8 @@ export class Cathedral {
   this.angel=new T.Group();this.angel.position.set(0,3.7,-8);this.root.add(this.angel);this.wings=new T.Group();this.angel.add(this.wings);
   for(let i=0;i<6;i++){const g=new T.Group();g.rotation.z=i*Math.PI/3;this.wings.add(g);for(let j=0;j<14;j++){const feather=this.mesh(new T.ConeGeometry(.18,3.2-j*.12,5),white,1+j*.16,0,j*.025,g);feather.rotation.z=-Math.PI/2+.3;}}
   for(let i=0;i<3;i++){const ring=this.ring(1.4+i*.58,.07,gold,0,0,0,this.angel);ring.rotation.x=i*.8;ring.rotation.y=i*.7;}
-  const eyeGeo=new T.SphereGeometry(.07,6,4);this.eyes=new T.InstancedMesh(eyeGeo,glow,1000);const pupil=new T.InstancedMesh(new T.SphereGeometry(.031,5,4),black,1000);const dummy=new T.Object3D();for(let i=0;i<1000;i++){const a=i*2.399,y=1-2*i/1000,r=Math.sqrt(1-y*y),rad=1.3+(i%3)*.55;dummy.position.set(Math.cos(a)*r*rad,y*rad,Math.sin(a)*r*rad);dummy.lookAt(dummy.position.clone().multiplyScalar(2));dummy.scale.set(1.5,.85,.6);dummy.updateMatrix();this.eyes.setMatrixAt(i,dummy.matrix);dummy.position.multiplyScalar(1.025);dummy.updateMatrix();pupil.setMatrixAt(i,dummy.matrix);}this.angel.add(this.eyes,pupil);
+  const eyeGeo=new T.SphereGeometry(.07,6,4);this.eyes=new T.InstancedMesh(eyeGeo,glow,1000);const pupil=new T.InstancedMesh(new T.SphereGeometry(.031,5,4),black,1000);const dummy=new T.Object3D();for(let i=0;i<1000;i++){const a=i*2.399,y=1-2*i/1000,r=Math.sqrt(1-y*y),rad=1.3+(i%3)*.55;dummy.position.set(Math.cos(a)*r*rad,y*rad,Math.sin(a)*r*rad);dummy.lookAt(dummy.position.clone().multiplyScalar(2));dummy.scale.set(1.5,.85,.6);dummy.updateMatrix();this.eyes.setMatrixAt(i,dummy.matrix);dummy.position.multiplyScalar(1.025);dummy.updateMatrix();pupil.setMatrixAt(i,dummy.matrix);}this.pupils=pupil;this.angel.add(this.eyes,pupil);
+  for(let i=0;i<7;i++){const copy=this.cat.clone(true);copy.visible=false;this.root.add(copy);this.copies.push(copy);}
   const bushes=new T.Group();bushes.name='bushes';this.root.add(bushes);for(let i=0;i<35;i++){const a=i*2.399,r=Math.sqrt(i)*.6;this.mesh(new T.IcosahedronGeometry(.7+(i%3)*.15,0),green,Math.sin(a)*r,.4,Math.cos(a)*r-8,bushes);}
   const tableStone=this.mat('#263936',.3);this.box(-3.7,.45,8,.7,.9,.7,tableStone);this.table=this.box(-3.7,.95,8,1.7,.16,1.7,this.mat('#718b76',.4,'#617b51'));for(let i=0;i<4;i++)for(let j=0;j<4;j++)this.box(-4.25+i*.36,1.04,7.45+j*.36,.25,.025,.25,(i+j)%2?gold:dark);
   this.letter=this.box(-4,1,-6,.7,.02,1,white);
@@ -58,28 +61,31 @@ export class Cathedral {
  gazeDirection(w:World):Point{this.camera.rotation.set(w.pitch,w.yaw,0);const d=new T.Vector3();this.camera.getWorldDirection(d);return {x:d.x,y:d.y,z:d.z};}
  waitTarget(w:World){return gazeLanding(w,this.gazeDirection(w),Math.max(.85,this.camera.position.y-w.y));}
  target(w:World):{target:AttentionKind;targetId:string}{
-  const none={target:'none' as const,targetId:''};if(w.underworld>0)return none;const d=this.gazeDirection(w),dir=new T.Vector3(d.x,d.y,d.z),origin=new T.Vector3(w.x,w.y+1.7,w.z);
+  const none={target:'none' as const,targetId:''};if(w.underworld>0)return none;const d=this.gazeDirection(w),dir=new T.Vector3(d.x,d.y,d.z),origin=new T.Vector3(w.x,w.y+(manifestation(w,'alphaeus')?.68:w.passage&&w.x>8&&w.z<-8?.85:1.7),w.z);
   const targets:[AttentionKind,string,any,number][]=[['cat','cat',this.cat.position,6],['angel','angel',this.angel.position,20],['stone','stone',new T.Vector3(0,w.place==='crypt'?2.5:2,w.place==='crypt'?-9:-2),12],['threshold','front',new T.Vector3(0,w.place==='stair'?11:3,-17),22],['threshold','left',new T.Vector3(-12,2,0),14],['threshold','right',new T.Vector3(12,2,0),14]];
+  if(witnessVisual(w,'andrew'))catCopies(w).forEach((p,i)=>targets.push(['cat','cat-copy-'+i,new T.Vector3(p.x,.72,p.z),18]));
   let chosen=none as {target:AttentionKind;targetId:string},best=.93;
-  for(const [kind,id,p,max] of targets){if(kind==='angel'&&(w.place!=='garden'||w.angel<.25))continue;if(kind==='stone'&&(w.place!=='nave'&&w.place!=='crypt'||w.place==='nave'&&(w.stable||w.skin)||w.place==='crypt'&&!throneVisible(w)))continue;if(kind==='cat'&&!this.cat.visible)continue;const delta=p.clone().sub(origin),distance=delta.length(),dot=dir.dot(delta.normalize());if(distance>max||dot<best)continue;
+  for(const [kind,id,p,max] of targets){if(kind==='angel'&&(w.place!=='garden'||w.angel<.25))continue;if(kind==='stone'&&(w.place!=='nave'&&w.place!=='crypt'||w.place==='nave'&&(w.stable||w.skin)||w.place==='crypt'&&!throneVisible(w)))continue;if(kind==='cat'&&id==='cat'&&!this.cat.visible)continue;const delta=p.clone().sub(origin),distance=delta.length(),dot=dir.dot(delta.normalize());if(distance>max||dot<best)continue;
    let blocked=false;for(let t=.4;t<distance-.8;t+=.35){const point=origin.clone().addScaledVector(delta,t);for(const px of [-7,7])for(const pz of [-10,0,10])if(point.y<11&&Math.hypot(point.x-px,point.z-pz)<.7)blocked=true;}if(blocked)continue;best=dot;chosen={target:kind,targetId:w.place+':'+id};
   }return chosen;
  }
  draw(w:World,dt:number,reduced:boolean){
   this.relics.update(w);this.clock+=dt;const t=this.clock;const stair=w.place==='stair';this.root.getObjectByName('stair').visible=stair;this.root.getObjectByName('frontDoor').position.y=stair?8.1:0;this.rose.position.y=stair?16:11;this.root.getObjectByName('bushes').visible=w.place==='garden';
-  const height=w.y;const depth=w.underworld>0?6.4*Math.min(1,(9-w.underworld)/1.2,w.underworld/2):0;this.burial.visible=depth>0;this.scar.visible=w.buried&&(w.place==='garden'||w.place==='crypt');const lowHeight=w.passage&&w.x>8&&w.z<-8&&!present(w,'alphaeus')?.85:1.7;this.camera.position.set(w.x,lowHeight+height-(reduced&&depth>0?6.4:depth),w.z);this.camera.rotation.set(w.pitch,w.yaw,0);
-  this.water.visible=w.place==='water'||w.memory>2;this.water.position.y=w.place==='water'?(present(w,'matthew')&&w.bridge?12:.08):13+Math.sin(t*.1)*.2;
+  const height=w.y;const depth=w.underworld>0?6.4*Math.min(1,(9-w.underworld)/1.2,w.underworld/2):0;this.burial.visible=depth>0;this.scar.visible=w.buried&&(w.place==='garden'||w.place==='crypt');const lowHeight=manifestation(w,'alphaeus')?witnessBodyHeight(w):w.passage&&w.x>8&&w.z<-8?.85:1.7;this.camera.position.set(w.x,lowHeight+height-(reduced&&depth>0?6.4:depth),w.z);this.camera.rotation.set(w.pitch,w.yaw,0);
+  this.water.visible=w.place==='water'||w.memory>2;this.water.position.y=w.place==='water'?(witnessVisual(w,'matthew')?12:.08):13+Math.sin(t*.1)*.2;
   this.rose.rotation.z=(reduced?0:t*.008)*(1+w.memory*.1);this.rose.scale.setScalar(w.ceiling?1.3:1);this.dust.rotation.y=reduced?0:Math.sin(t*.03)*.15;this.dust.material.opacity=.2+w.attention*.025;
-  this.bridge.visible=w.place==='water'&&w.bridge;this.screen.visible=w.place==='nave'&&!w.skin&&!w.stable;this.roots.visible=w.roots||w.place==='garden';this.ceiling.visible=!w.ceiling;this.throne.visible=w.place==='crypt'&&throneVisible(w);this.low.scale.y=present(w,'alphaeus')?1.8:1;this.low.visible=w.passage&&w.place==='nave';this.letter.visible=w.place==='crypt';
-  this.angel.visible=w.place==='garden'&&w.angel>.12;this.angel.scale.setScalar(Math.max(.01,w.angel));this.angel.position.y=(w.underworld>0?-1:3.7)+(reduced?0:Math.sin(t*.3)*.3);this.angel.rotation.x=w.underworld>0?Math.PI:0;this.eyes.scale.y=w.underworld>0?.04:present(w,'john')?.12:1;this.eyes.rotation.y=reduced?0:t*.055;this.wings.rotation.z=reduced?0:Math.sin(t*.12)*.12;
+  this.bridge.visible=w.place==='water'&&w.bridge;this.screen.visible=w.place==='nave'&&!w.skin&&!w.stable;this.roots.visible=w.roots||w.place==='garden';this.ceiling.visible=!w.ceiling;this.throne.visible=w.place==='crypt'&&throneVisible(w);this.low.scale.y=witnessVisual(w,'alphaeus')?1.8:1;this.low.visible=w.passage&&w.place==='nave';this.letter.visible=w.place==='crypt';
+  this.angel.visible=w.place==='garden'&&w.angel>.12;this.angel.scale.setScalar(Math.max(.01,w.angel));this.angel.position.y=(w.underworld>0?-1:3.7)+(reduced?0:Math.sin(t*.3)*.3);this.angel.rotation.x=w.underworld>0?Math.PI:0;this.eyes.scale.y=this.pupils.scale.y=w.underworld>0?.04:witnessVisual(w,'john')?.08:1;this.eyes.rotation.y=this.pupils.rotation.y=reduced?0:t*.055;this.wings.rotation.z=reduced?0:Math.sin(t*.12)*.12;
   const color=['#171e26','#25202d','#19312c'][w.reality];this.scene.background.set(depth>0?'#0a0706':color);this.scene.fog.color.set(depth>0?'#0a0706':color);this.scene.fog.density=depth>0?.048:.019;this.light.color.set(w.place==='garden'?'#d2e1b0':w.place==='crypt'?'#baa3d2':'#ffe1b2');
   let cx=5,cz=-5;if(w.catPhase===2){cx=5+Math.min(1,w.catTimer/3)*5;cz=-5-Math.min(1,w.catTimer/3)*6;}else if(w.catPhase===3){cx=10;cz=-11;}if(w.place!=='nave'){cx=w.x+Math.sin(t*.2)*2;cz=w.z-3;}
   this.cat.position.lerp(new T.Vector3(cx,.03,cz),Math.min(1,dt*2));this.cat.rotation.y=Math.atan2(cx-this.cat.position.x,cz-this.cat.position.z);this.cat.visible=w.catPhase!==3||w.place!=='nave';
   this.companions.forEach((g,i)=>{const id=w.party[i],waiting=w.waitSpots[id];g.visible=!!id&&(!w.left.includes(id)||waiting?.place===w.place);if(!g.visible)return;let point:Point;
-   if(waiting){point=waiting;}else{const a=w.yaw+(i-1)*.9,x=Math.max(-11,Math.min(11,w.x+Math.sin(a)*2)),z=Math.max(-15,Math.min(15,w.z+Math.cos(a)*2));point={x,z,y:support(w.place,x,z,w.y+.32)};}
-   if(this.lastPlace!==w.place||Math.hypot(g.position.x-point.x,g.position.z-point.z)>16)g.position.set(point.x,point.y,point.z);else{g.position.x+=(point.x-g.position.x)*Math.min(1,dt*3);g.position.z+=(point.z-g.position.z)*Math.min(1,dt*3);const onThrone=waiting?.enthroned&&Math.hypot(g.position.x-point.x,g.position.z-point.z)<1;const floor=onThrone?point.y:support(w.place,g.position.x,g.position.z,g.position.y+.32);if(floor>=g.position.y){g.position.y=floor;g.userData.vy=0;}else{g.userData.vy=(g.userData.vy||0)-14*dt;g.position.y=Math.max(floor,g.position.y+g.userData.vy*dt);}}
+   if(waiting){point=waiting;}else{const a=w.yaw+(i-1)*.9,x=Math.max(-11,Math.min(11,w.x+Math.sin(a)*2)),z=Math.max(-15,Math.min(15,w.z+Math.cos(a)*2));point={x,z,y:groundAt(w,x,z,w.y+.32)};}
+   if(this.lastPlace!==w.place||Math.hypot(g.position.x-point.x,g.position.z-point.z)>16)g.position.set(point.x,point.y,point.z);else{g.position.x+=(point.x-g.position.x)*Math.min(1,dt*3);g.position.z+=(point.z-g.position.z)*Math.min(1,dt*3);const onThrone=waiting?.enthroned&&Math.hypot(g.position.x-point.x,g.position.z-point.z)<1;const floor=onThrone?point.y:groundAt(w,g.position.x,g.position.z,g.position.y+.32);if(floor>=g.position.y){g.position.y=floor;g.userData.vy=0;}else{g.userData.vy=(g.userData.vy||0)-14*dt;g.position.y=Math.max(floor,g.position.y+g.userData.vy*dt);}}
    g.rotation.y=waiting?.enthroned?Math.PI:w.yaw;
   });this.lastPlace=w.place;
+  const copies=catCopies(w);this.copies.forEach((copy,i)=>{copy.visible=!!witnessVisual(w,'andrew');if(copy.visible){copy.position.set(copies[i].x,.03,copies[i].z);copy.rotation.y=i*.9;}});
+  this.effects.update(w,reduced);
   this.renderer.render(this.scene,this.camera);
  }
 }

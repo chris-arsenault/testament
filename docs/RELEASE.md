@@ -49,3 +49,13 @@ Published from `00ed67e01c0349816a6ea217516f87139c354714`, deployment `appgdep_6
 Published from `c273f020199d17d385c7c5c58edf44efb4bc66a9`, deployment `appgdep_6ae944b43534819180887977c7ab0c26` (succeeded), November 2, 2026 (America/Phoenix).
 
 Every room has a different optional table puzzle with persistent state, a distorted scripture/political transmission, and a detuned canticle. Attempt duration increases rustling whispers and falling disciple text, with no time limit or progression reward. All 26 tests passed. All five puzzles were completed through browser controls; the published nave table was opened through normal traversal. Phone-width glyph rendering, saved completion, and Escape exit were checked. See PUZZLE_TABLES.md for verification limits and architecture.
+
+## Version 8 — Defect batch D-001 through D-007
+
+Published November 2, 2026 (America/Phoenix), source `75d076f237313b94dafea9e58a53a484f05a6dff`, saved version `appgprj_6ae8ef5a5b408191a788e3fc3596804b~appgver_56a6a94dbdb88191939bdacb7dd95330`, deployment `appgdep_6ae96d8d7e2c8191b312d0c482982c90` (succeeded).
+
+Adds branching roots, silent table interfaces, a chthonic angel-contact chamber, persistent throne claims and gaze-directed wait positions, automatic gaze attention with an early filtered whoomp, and physical stair support. All 39 automated checks and strict compilation passed. Desktop/mobile tables, roots, stair descent/underpass, throne refusal and private-fixture solitude release, and the buried chamber were inspected in the browser. The published entry and nave table were verified without console errors. See DEFECTS.md for exact acceptance evidence and verification limits.
+
+## Witness revision — prepared for publication
+
+All twelve witnesses now have independently timed audio, visual and physical/interaction channels. Adds linked cat copies, remembered menu language, a disposable contradictory water ledger, and changes to collision, body size, gravity, support and threshold destinations. Strict compilation and 57 checks pass, with browser verification described in WITNESS_PHENOMENA.md. Publication IDs will be recorded after the native deployment succeeds.

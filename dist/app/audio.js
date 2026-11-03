@@ -1,6 +1,8 @@
+import { WitnessAudio } from './witness-audio.js';
 import { whoomp } from './resonance.js';
 import { Score } from '../score.js';
 export class Sound {
+    witnesses = new WitnessAudio();
     music = new Score();
     effects = new Score();
     lastStep = 0;
@@ -17,7 +19,11 @@ export class Sound {
         else if (w.place === 'stair')
             this.effects.tone(92 / (1 + w.turns % 3), 3, .06);
     } }
-    event(e) { if (e.kind === 'gaze-cue')
+    event(e) { if (e.kind === 'witness' && e.witness)
+        this.witnesses.play(this.effects, e.witness);
+    else if (e.kind === 'cat-link')
+        this.effects.cue('purr');
+    else if (e.kind === 'gaze-cue')
         whoomp(this.effects);
     else if (e.kind === 'chthonic')
         whoomp(this.effects, true);

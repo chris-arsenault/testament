@@ -1,3 +1,5 @@
+import { menuTongue } from './languages.js';
+import { witnessEffects } from './witnesses.js';
 import { interruptAttention } from './attention.js';
 import { PuzzleUI } from './puzzle-ui.js';
 import { captureMouse, lookDelta, volumeMix } from './look.js';
@@ -75,7 +77,8 @@ function save() { try {
 catch {
     storage = false;
 } $('storageNote').textContent = storage ? '' : 'This browser cannot keep your place after closing.'; }
-function roster() { const r = $('roster'); r.replaceChildren(); for (const witness of witnesses) {
+function language() { const t = menuTongue(w.tongue); $('menuHeading').textContent = t.heading; $('partyHelp').textContent = t.help; $('resume').textContent = t.resume; $('home').textContent = t.home; $('new').textContent = resetArmed ? t.confirm : t.forget; document.getElementById('menuHeading').lang = ['en', 'fr', 'pt'][w.tongue]; }
+function roster() { language(); const r = $('roster'); r.replaceChildren(); for (const witness of witnesses) {
     const b = document.createElement('button');
     b.setAttribute('aria-pressed', String(w.party.includes(witness.id)));
     b.innerHTML = `<strong>${witness.name}</strong><small>${witness.body}</small><em>${witness.sign}</em>`;
@@ -102,9 +105,9 @@ $('home').onclick = () => { w.place = 'nave'; w.x = 0; w.y = 0; w.vy = 0; w.z = 
 let resetArmed = false;
 $('new').onclick = () => { if (!resetArmed) {
     resetArmed = true;
-    $('new').textContent = 'Forget permanently?';
+    $('new').textContent = menuTongue(w.tongue).confirm;
     return;
-} w = initial(); puzzles.reset(); resetArmed = false; $('new').textContent = 'Forget this place'; save(); roster(); resume(); };
+} w = initial(); puzzles.reset(); resetArmed = false; $('new').textContent = menuTongue(w.tongue).forget; save(); roster(); resume(); };
 addEventListener('keydown', e => { if (puzzles.isOpen)
     return; if ((e.code === 'Escape' || e.key === 'Escape') && !menu.open) {
     e.preventDefault();
@@ -182,6 +185,14 @@ function frame(now) {
                 captionTime = 8;
                 eventCount++;
                 $('soundCaption').textContent = e.kind === 'cat' ? '[a purr behind the stone]' : e.kind === 'angel' ? '[a thousand small lids opening]' : '[the building answers, far below]';
+            }
+            else if (e.kind === 'witness' && e.witness) {
+                $('soundCaption').textContent = '[' + witnessEffects[e.witness].sound + ']';
+                captionTime = Math.max(captionTime, 4);
+            }
+            else if (e.kind === 'cat-link') {
+                captionTime = Math.max(captionTime, 3);
+                $('soundCaption').textContent = '[a purr in two places]';
             }
             else if (e.kind === 'gaze-cue')
                 $('soundCaption').textContent = '[a low rush of air]';

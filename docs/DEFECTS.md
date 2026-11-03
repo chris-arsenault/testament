@@ -12,7 +12,7 @@ Keep meaningful accessible names and state descriptions. They should identify th
 
 ## D-001 — Returning garden appears as giant spikes
 
-Status: Implemented — verified locally
+Status: Closed — published in version 8
 
 Observed: the returning-garden effect fills the floor with straight, tapered green shapes. They look like scattered stakes or weapons rather than roots emerging through architecture.
 
@@ -33,7 +33,7 @@ Acceptance:
 
 ## D-002 — Tables explain their puzzles and over-explain departure
 
-Status: Implemented — verified locally
+Status: Closed — published in version 8
 
 Observed: the table interface tells players the rules, gives explicit action directions, and says they may leave. Extra headings and marginal notes also compete with the puzzle itself.
 
@@ -59,7 +59,7 @@ Acceptance:
 
 ## D-003 — Angel contact needs a chthonic response
 
-Status: Implemented — verified locally
+Status: Closed — published in version 8
 
 User direction: interacting with the angel or walking through it should feel **chthonic**. Interpret this as contact with something ancient, subterranean, and buried beneath creation.
 
@@ -83,7 +83,7 @@ Acceptance:
 
 ## D-004 — A waiting disciple claims the throne
 
-Status: Implemented — verified locally
+Status: Closed — published in version 8
 
 User direction: asking a disciple to wait in the throne room causes them to stand on the throne and refuse to leave until they have been alone too long.
 
@@ -110,7 +110,7 @@ Acceptance:
 
 ## D-005 — Waiting positions should follow the player's gaze
 
-Status: Implemented — verified locally
+Status: Closed — published in version 8
 
 User direction: outside the throne room, disciples should wait where the player is looking, rather than at predetermined positions.
 
@@ -136,7 +136,7 @@ Acceptance:
 
 ## D-006 — Attention should arise from lingering gaze
 
-Status: Implemented — verified locally
+Status: Closed — published in version 8
 
 User direction: remove the explicit Attend action and trigger attention when the player's gaze lingers.
 
@@ -170,7 +170,7 @@ Acceptance:
 
 ## D-007 — Stair height extends across invisible walking surfaces
 
-Status: Implemented — verified locally
+Status: Closed — published in version 8
 
 Observed: the player can step sideways off the visible staircase yet keep walking at stair height. The elevation behaves like a slope spanning the room instead of matching the visible steps.
 
@@ -216,3 +216,7 @@ Acceptance:
 - D-007: shared step dimensions drive rendering and support queries; the player falls off edges, can pass underneath where clearance allows, and needs the upper landing to loop. Automated ascent/edge/underpass checks and browser support inspection passed.
 
 Verification: strict TypeScript build; 39 automated tests passed; no runtime console errors observed in the reviewed scenes. Physical touch hardware and subjective headphone listening remain unverified. Private inspectors are not published.
+
+## Publication confirmation
+
+Version 8 published successfully on November 2, 2026 (America/Phoenix). Source: `75d076f237313b94dafea9e58a53a484f05a6dff`. Deployment: `appgdep_6ae96d8d7e2c8191b312d0c482982c90`. The live entry page and instruction-free nave table were verified after publication. This receipt was updated after publication and does not alter application files.

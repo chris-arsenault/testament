@@ -1,3 +1,5 @@
+import { manifestation } from './witnesses.js';
+import { borrowedLedger } from './puzzle-phenomena.js';
 import { act, freshPuzzle, glyphs, puzzleInfo, restorePuzzle, sudokuClues, whisperInterval } from './puzzles.js';
 import { places } from './world.js';
 import { witnesses } from './content.js';
@@ -11,6 +13,8 @@ export class PuzzleUI {
     onClose;
     reduced;
     storageKey;
+    echo = null;
+    echoTime = 0;
     states;
     place = 'nave';
     dialog = $('puzzle');
@@ -36,15 +40,21 @@ export class PuzzleUI {
     get isOpen() { return this.dialog.open; }
     near() { const w = this.world(); return Math.abs(w.y) < 1.7 && Math.hypot(w.x + 3.7, w.z - 8) < 4.8; }
     open() { if (this.isOpen)
-        return; this.place = this.world().place; this.onOpen(); this.nextWhisper = whisperInterval(this.states[this.place].elapsed); this.dialog.showModal(); this.dialog.scrollTop = 0; $('puzzleStatus').textContent = ''; this.render(); $('puzzleTitle').focus(); }
-    close(capture) { this.save(); this.dialog.close(); this.sound.stop(); $('whisperRain').replaceChildren(); this.onClose(capture); }
-    reset() { this.states = Object.fromEntries(places.map(p => [p, freshPuzzle(p)])); this.save(); }
+        return; this.place = this.world().place; const debt = manifestation(this.world(), 'matthew'); this.echo = this.place === 'water' && debt && !this.states.water.solved ? borrowedLedger(this.states.water) : null; this.echoTime = this.echo ? debt.remaining : 0; this.onOpen(); this.nextWhisper = whisperInterval(this.states[this.place].elapsed); this.dialog.showModal(); this.dialog.scrollTop = 0; $('puzzleStatus').textContent = ''; this.render(); $('puzzleTitle').focus(); }
+    close(capture) { this.mergeEcho(); this.echo = null; this.echoTime = 0; this.save(); this.dialog.close(); this.sound.stop(); $('whisperRain').replaceChildren(); this.onClose(capture); }
+    mergeEcho() { if (this.echo) {
+        const real = this.states[this.place];
+        real.elapsed = Math.max(real.elapsed, this.echo.elapsed);
+        real.whispers = Math.max(real.whispers, this.echo.whispers);
+    } }
+    current() { return this.echo ?? this.states[this.place]; }
+    reset() { this.echo = null; this.echoTime = 0; this.states = Object.fromEntries(places.map(p => [p, freshPuzzle(p)])); this.save(); }
     save() { try {
         localStorage.setItem(this.storageKey, JSON.stringify(this.states));
     }
     catch { } }
     render(focusIndex) {
-        const s = this.states[this.place], info = puzzleInfo[this.place];
+        const s = this.current(), info = puzzleInfo[this.place];
         $('puzzleTitle').textContent = info.title;
         $('puzzleWork').classList.toggle('hidden', s.solved);
         $('puzzleReward').classList.toggle('hidden', !s.solved);
@@ -104,7 +114,17 @@ export class PuzzleUI {
             board.querySelector(`[data-index="${focusIndex}"]`)?.focus({ preventScroll: true });
     }
     update(dt) { if (!this.isOpen || document.hidden)
-        return; const s = this.states[this.place]; if (s.solved)
+        return; if (this.echo) {
+        this.echoTime -= dt;
+        const debt = this.world().manifestations.matthew;
+        if (debt)
+            debt.remaining = Math.min(debt.remaining, Math.max(0, this.echoTime));
+        if (this.echoTime <= 0) {
+            this.mergeEcho();
+            this.echo = null;
+            this.render();
+        }
+    } const s = this.current(); if (s.solved)
         return; s.elapsed += dt; this.nextWhisper -= dt; this.saveClock += dt; if (this.saveClock > 5) {
         this.save();
         this.saveClock = 0;
@@ -112,7 +132,7 @@ export class PuzzleUI {
         this.whisper();
         this.nextWhisper = whisperInterval(s.elapsed);
     } }
-    whisper() { const s = this.states[this.place], w = this.world(); const company = w.party.length ? w.party : ['john']; const id = company[s.whispers % company.length]; const person = witnesses.find(x => x.id === id); const line = discipleWhispers[id][Math.floor(s.whispers / company.length) % 3]; const n = s.whispers++; this.sound.rustle(n % 2 ? .65 : -.65); const stream = document.createElement('div'); stream.className = 'disciple-whisper'; stream.style.left = `${4 + (n * 29) % 55}%`; stream.style.setProperty('--drift', `${n % 2 ? 30 : -30}px`); stream.innerHTML = '<small></small><span></span>'; stream.querySelector('small').textContent = person.name.toUpperCase(); stream.querySelector('span').textContent = line; const rain = $('whisperRain'); rain.append(stream); while (rain.children.length > 4)
+    whisper() { const s = this.current(), w = this.world(); const company = w.party.length ? w.party : ['john']; const id = company[s.whispers % company.length]; const person = witnesses.find(x => x.id === id); const line = discipleWhispers[id][Math.floor(s.whispers / company.length) % 3]; const n = s.whispers++; this.sound.rustle(n % 2 ? .65 : -.65); const stream = document.createElement('div'); stream.className = 'disciple-whisper'; stream.style.left = `${4 + (n * 29) % 55}%`; stream.style.setProperty('--drift', `${n % 2 ? 30 : -30}px`); stream.innerHTML = '<small></small><span></span>'; stream.querySelector('small').textContent = person.name.toUpperCase(); stream.querySelector('span').textContent = line; const rain = $('whisperRain'); rain.append(stream); while (rain.children.length > 4)
         rain.firstElementChild?.remove(); stream.addEventListener('animationend', () => stream.remove()); setTimeout(() => stream.remove(), 14000); if (this.reduced)
         stream.classList.add('still-whisper'); $('puzzleStatus').textContent = person.name + ' whispers: ' + line; }
 }
