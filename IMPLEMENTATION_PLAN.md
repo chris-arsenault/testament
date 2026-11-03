@@ -1,0 +1,208 @@
+# TESTAMENT — Implementation plan and accountability record
+
+Recorded: 2026-11-02
+
+## Authority and status
+
+This document records the agreed creative direction and implementation plan. The user authorized execution of **all phases without stopping**, then requested this durable reference. Saving this document does not constitute completion of any implementation phase.
+
+At the time of recording, the published game is the earlier desert/seven-seal prototype. The cathedral architecture and systems below are planned, not verified as implemented. Existing graphics, soundtrack, roster, and lore may be reused where they serve this direction.
+
+## Creative contract
+
+Rebuild TESTAMENT as one continuous, evolving cathedral of thought. The Bible supplies its images, contradictions, relationships, and transformations. Walking, looking, waiting, returning, and choosing companions become ways of thinking inside it.
+
+The user's correction governs the design: “everything must do something but that something does not have to be comprehensible” and “no missions, just fluid evolution of thought.”
+
+- No mission assignments, quest markers, collectible quotas, or mission-completion screens.
+- Every phenomenon changes space, perception, memory, companionship, or another phenomenon. Cryptic text alone is not a mechanic.
+- Causes are precise internally; interpretation remains open to the player.
+- The entire Bible informs a simultaneous, transforming world rather than a required sequence of chapters or rooms.
+- The cat from the supplied photograph is central to the world's spatial logic.
+- All twelve disciples are selectable companions whose altered bodies and presence affect reality.
+- Surprise, impossible architecture, intimate absurdity, and esoteric atmosphere must produce consequences rather than cosmetic references.
+- Developer instructions, design explanations, test controls, and feature advertising must remain outside player-facing content.
+- Reliable movement and recoverable transitions support the mystery. Unresponsive controls and arbitrary obstruction do not.
+
+## Phase 1 — Establish the world's grammar
+
+Write specifications separating:
+
+1. Internal rules: triggers, affected state, persistence, precedence, and recovery.
+2. Player experience: visible, audible, spatial, or behavioral evidence.
+3. Interpretation: meanings intentionally left open.
+
+The opening contains the cathedral, an impossible staircase, bushes concealing an angel, and the cat. Each phenomenon specification must name its consequence and its interactions with other systems.
+
+Acceptance: the core phenomena have explicit rules and observable consequences without requiring explanatory objectives.
+
+## Phase 2 — Architecture beneath the mystery
+
+Keep Three.js; move the game into TypeScript modules with a reproducible build. Separate simulation from rendering so behavior can be tested without WebGL.
+
+| Module | Responsibility |
+| --- | --- |
+| World simulation | Stable time, entities, deterministic randomness, commands, events, state changes |
+| Spatial topology | Doorway connections, recursive stairs, alternate room arrangements |
+| Perception | Attention, visibility, gaze, sound, remembered observations |
+| World memory | Persistent behavioral traces, decay, thresholds |
+| Companions | Twelve disciples modifying explicit world rules |
+| Phenomena | Conditions, transformations, interactions, persistence |
+| Presentation | Geometry, animation, audio, interface, player-facing language |
+| Persistence | Versioned saves, restoration, invalid-state recovery |
+
+Use authored rules and explicit state machines. Simulation owns state; input and UI issue commands; events drive presentation. Define shared contracts for phenomena and companion effects. Add a private developer inspector that explains transformations; exclude it from the shipped player interface.
+
+Acceptance: deterministic simulation checks, a working browser build, and save restoration work across the module boundaries. Avoid a new monolithic runtime under a different filename.
+
+## Phase 3 — Convincing impossible space
+
+Build the cathedral and staircase first. A circuit returns to its starting point while changing room adjacency, gravity cues, companion position, or the source of footsteps. Doorways may change destinations while preserving convincing transitions.
+
+Start with seamless transformations at occluded thresholds. Add rendered portals only where seeing impossible connections improves the experience.
+
+Acceptance:
+
+- Repeated ascent creates persistent changes.
+- Descending, stopping, and returning produce distinct responses.
+- Movement remains controllable through transitions.
+- No transformation traps the player or corrupts a save.
+- Exploration works without objective markers.
+
+## Phase 4 — Attention, memory, and the cat
+
+Implement looking, looking away, proximity, lingering, repetition, and following as world inputs. The cat navigates an alternate connection graph and enters passages currently concealed from the player. Following her can reconcile the two geometries temporarily.
+
+Her animation and sound communicate hesitation, fixation, retreat, waiting, and confidence. Include ordinary resting and cat behavior so every movement does not become an instruction.
+
+First authored interaction chain: the cat watches beneath a stair; direct inspection reveals nothing; moving away allows her to disappear beneath it; returning reveals a passage whose distant footsteps belong to the player.
+
+Acceptance: this chain changes traversable space and leaves memory that affects later encounters. Cat behavior is functional rather than a decorative following model.
+
+## Phase 5 — Angel as an event in perception
+
+Place an angel among ordinary bushes without a boss introduction or health bar. Its appearance follows authored world conditions with controlled variation. Its many eyes expose different arrangements of nearby space; attention makes an arrangement tangible. Looking away need not reverse the choice.
+
+Coordinate eye groups instead of rendering a thousand independent cameras. Use instancing, animation, and selective rendering for density.
+
+Acceptance:
+
+- The angel changes traversable space.
+- Players can encounter, avoid, leave, and revisit it.
+- Its effects interact with staircase and cat state.
+- Its presence changes sound before or after discovery.
+- Browser performance is measured and acceptable on the tested environment; limitations are recorded.
+
+## Phase 6 — Disciples alter reality
+
+Implement three deeply first, then extend the same contracts to all twelve. Retain the roster, but never present unfinished powers as functional.
+
+- Thomas: repeated scrutiny stabilizes uncertain geometry, potentially closing other possibilities.
+- Peter: remaining beside a threshold anchors its destination; departing releases it.
+- Judas: separation creates connections that cannot exist while the party is together.
+
+Design the remaining nine through the same rule contract. Each disciple needs a perceptible signature, a spatial or behavioral consequence, and interactions with at least two existing phenomena. Combinations change the experience without making a particular selection mandatory.
+
+Acceptance: all twelve are selectable and functional, their consequences are verified, and combination checks cover conflicts and recovery. Temporary numerical buffs alone do not satisfy this phase.
+
+## Phase 7 — The entire Bible permeates the space
+
+Create an internal thematic coverage map spanning the biblical books and major movements. Record the canon used and any coverage gaps. Translate material into interacting phenomena rather than chapter progression.
+
+Creation, covenant, exile, wisdom, lament, incarnation, death, resurrection, witness, and revelation recur as transformations grounded in specific texts and images.
+
+Examples to develop:
+
+- Water overhead remembers an earlier act of abandonment.
+- A genealogy changes which figures cast the player's shadow.
+- A letter changes its addressee according to who has been absent.
+- A garden grows through architecture the player previously made permanent.
+
+Acceptance: the coverage map links source themes to implemented phenomena and consequences. A book-name list or archive of summaries alone does not establish experiential coverage. The map is developer documentation, not a player checklist.
+
+## Phase 8 — Sound, language, and accessibility
+
+Evolve the original soundtrack into world-state-driven layers: architectural resonance, breath, distant voices, metallic harmonics, displaced footsteps, and authored silence. Sound can reveal a relationship before geometry does.
+
+Player-facing writing is sparse and specific. Dialogue responds to events and relationships. Keep content in dedicated files, separate from implementation notes. Remove development language and explanations of intended symbolism.
+
+Include independent volume controls, subtitles or equivalent cues for meaningful audio, reduced-motion options, and alternatives to precise sustained-gaze interactions.
+
+Acceptance: sound responds to actual world changes; language audit finds no leaked instructions; accessible alternatives preserve functional interactions. Record which audio checks were automated and which were actually listened to.
+
+## Phase 9 — Coherence, verification, and publication
+
+Automated checks cover topology, transformation ordering, companion interactions, save restoration, and recovery. Browser playthroughs assess noticeable consequences, reliable movement, and curiosity without instructions.
+
+A review build must let a player:
+
+- Explore without an assignment.
+- Cause several different transformations.
+- Infer at least one relationship through experience.
+- Revisit a place and discover a consequence.
+- Leave encounters without a dead end.
+
+Mystery is not itself a failure. Invisible consequences, repetitive triggers, broken controls, and arbitrary obstruction are failures.
+
+Publish the verified result to the existing public site. Preserve recoverable source history. Verify the deployed build and report actual validation and remaining limitations; do not equate unit tests or teleported progression with a complete manual playthrough.
+
+## Execution milestones
+
+These are sequencing checkpoints, not permission gates. The user's authorization covers all phases; continue through the full plan unless a concrete blocker requires input.
+
+| Milestone | Deliverable | Status |
+| --- | --- | --- |
+| M1 | Grammar, simulation architecture, private inspector | Implemented and checked locally |
+| M2 | Cathedral traversal and recursive staircase | Implemented and checked locally |
+| M3 | Attention, memory, functional cat | Implemented and checked locally |
+| M4 | Angel and three interacting disciple rules | Implemented and checked locally |
+| M5 | Integrated sound, language, accessibility, tested core build | Implemented and checked locally |
+| M6 | All twelve disciples and biblical transformation coverage | Implemented and checked locally |
+| M7 | Full regression, browser review, public deployment verification | Local verification passed; publication pending |
+
+The first integrated checkpoint is a playable, persistent cathedral with impossible stairs, alternate cat access, a perception-altering angel, three interacting disciples, and evolving sound. It is not the end of the authorized scope. Expand to all twelve and biblical coverage, then complete verification and publication.
+
+## Accountability protocol
+
+- Update this record after each milestone with changed files, verified behavior, checks performed, limitations, and next work.
+- Mark work complete only when its acceptance criteria have supporting evidence.
+- Record design deviations with their reason and effect on the creative contract.
+- Distinguish implemented, tested, published, and merely proposed behavior.
+- Do not silently drop phases or substitute cosmetic effects for system interactions.
+- Keep this document outside the public static output directory.
+
+## Progress ledger
+
+### 2026-11-02 — Plan recorded
+
+- Saved the agreed direction, all nine phases, architecture, acceptance criteria, milestones, and accountability protocol.
+- Implementation status: no cathedral phases completed or verified by this documentation step.
+- Next implementation work: inspect current source and repository instructions, establish baseline, then execute M1.
+
+## Deployment reference
+
+- Public site: https://testament-exodus-protocol-carse.pilednacre1.chatgpt.site/
+- Existing project ID: appgprj_6ae8ef5a5b408191a788e3fc3596804b
+- Baseline published commit recorded from prior work: 6638a4d1872d9800b5f5a16198415d353f9a3496
+- Recheck repository and deployment state before modifying or publishing.
+
+### 2026-11-02 — Cathedral implementation and local verification
+
+- M1: strict TypeScript modules, content separation, commands/state/events, versioned persistence, and private CLI/browser inspectors. See docs/ARCHITECTURE.md.
+- M2: five configurations of one cathedral; recursive stair circuits; mutable side/front/low connections; descent and stillness have distinct consequences; threshold blinks conceal topology swaps.
+- M3: approach/look-away cat sequence opens a physical passage. Attention, absence, return, and sustained stillness feed persistent world state.
+- M4: 1,000 instanced eyes, six radial wings, rotating rings, nearby bushes, attention-driven reality changes, and all initial companion rules.
+- M5: seven original synthesized musical states follow world configuration, with separate effect volume, meaningful sound captions, reduced motion, automatic attention, continuous walking, touch controls, and revised language.
+- M6: all twelve selectable companions change state/topology; waiting companions remain associated with the space where they were left. Seven simultaneous biblical phenomenon families cover 66 books; see docs/BIBLICAL_COVERAGE.md.
+- M7 local evidence: strict compilation passed; 11 automated tests passed, including all 220 three-member parties, collision, save validation, cat sequencing, angel topology, waiting route, determinism, coverage, and seven finite unclipped musical states. Browser controls reached and repeatedly traversed the staircase; inspected angel/water/crypt; roster selection worked; 390x844 menu layout checked; no console errors observed. Local inspector measured approximately 17–18 ms average frame intervals in sampled scenes (not a cross-device benchmark).
+
+#### Deliberate implementation choices and limits
+
+- Impossible space uses authored topology changes and a brief visual blink, not recursive portal rendering. The inspector is local-only and excluded from dist.
+- The Bible is a grouped thematic adaptation of the existing 66-book Protestant canon, not a literal rendering of every event; deuterocanonical material is not represented.
+- All twelve rules are functional. Combination enumeration verifies finite state and valid exits, not exhaustive artistic quality or balance.
+- Browser scene-inspector checks are distinguished from normal-control traversal. The entire emergent experience has not received an independent human playtest. Physical touch devices and subjective headphone listening remain unverified.
+- Geometry remains procedural and deliberately stylized. No external AI-generated imagery or voices were introduced.
+- The initial review checkpoint did not stop work: the remaining nine companions and biblical families were implemented in the same authorized run.
+
+Publication status will be recorded in docs/RELEASE.md after the hosting service confirms deployment.

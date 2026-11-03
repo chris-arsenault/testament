@@ -1,0 +1,151 @@
+import { Cathedral } from './rendering.js';
+import { Sound } from './audio.js';
+import { initial, restore, tick, walk, select, separate } from './world.js';
+import { witnesses } from './content.js';
+const $ = (id) => document.getElementById(id);
+const canvas = $('world'), menu = $('menu');
+let w = initial(), storage = true;
+try {
+    w = restore(localStorage.getItem('testament-cathedral-v2'));
+}
+catch {
+    storage = false;
+}
+let renderer;
+try {
+    renderer = new Cathedral(canvas);
+}
+catch (e) {
+    $('veil').innerHTML = '<h1>TESTAMENT</h1><p>This cathedral needs WebGL. Enable hardware acceleration and reopen this page.</p>';
+    throw e;
+}
+const audio = new Sound(), keys = new Set();
+let active = false, started = false, last = performance.now(), saveTime = 0, captionTime = 0, drag = false, focusToggle = false, eventCount = 0, autoWalk = false, lastSpace = w.place, lastTurns = w.turns;
+let settings = { music: 45, effects: 65, reduced: matchMedia('(prefers-reduced-motion: reduce)').matches, easy: false, subtitles: true };
+try {
+    settings = { ...settings, ...JSON.parse(localStorage.getItem('testament-settings') || '{}') };
+}
+catch { }
+for (const id of ['music', 'effects', 'reduced', 'easy', 'subtitles']) {
+    const el = $(id);
+    if (el.type === 'checkbox')
+        el.checked = !!settings[id];
+    else
+        el.value = String(settings[id]);
+    el.oninput = () => { settings[id] = el.type === 'checkbox' ? el.checked : Number(el.value); document.body.classList.toggle('quiet', settings.reduced); audio.music.setVolume(settings.music / 100); audio.effects.setVolume(settings.effects / 100); try {
+        localStorage.setItem('testament-settings', JSON.stringify(settings));
+    }
+    catch { } };
+}
+document.body.classList.toggle('quiet', settings.reduced);
+function save() { try {
+    localStorage.setItem('testament-cathedral-v2', JSON.stringify({ ...w, events: [] }));
+}
+catch {
+    storage = false;
+} $('storageNote').textContent = storage ? '' : 'This browser cannot keep your place after closing.'; }
+function roster() { const r = $('roster'); r.replaceChildren(); for (const witness of witnesses) {
+    const b = document.createElement('button');
+    b.setAttribute('aria-pressed', String(w.party.includes(witness.id)));
+    b.innerHTML = `<strong>${witness.name}</strong><small>${witness.body}</small><em>${witness.sign}</em>`;
+    b.onclick = () => { if (w.party.includes(witness.id))
+        select(w, w.party.filter(x => x !== witness.id));
+    else if (w.party.length < 3)
+        select(w, [...w.party, witness.id]);
+    else {
+        $('partyHelp').textContent = 'Three are beside you. Release one to welcome another.';
+        return;
+    } save(); roster(); };
+    r.append(b);
+} }
+function pause() { if (menu.open)
+    return; active = false; autoWalk = false; keys.clear(); drag = false; audio.pause(true); roster(); menu.showModal(); menu.tabIndex = -1; menu.focus(); menu.scrollTop = 0; save(); }
+function resume() { menu.close(); active = started; audio.pause(false); keys.clear(); last = performance.now(); }
+$('enter').onclick = () => { started = true; active = true; $('veil').classList.add('hidden'); audio.start(); audio.music.setVolume(settings.music / 100); audio.effects.setVolume(settings.effects / 100); captionTime = 8; $('caption').textContent = 'The cat was here before the beginning.'; };
+$('menuButton').onclick = pause;
+$('resume').onclick = resume;
+menu.addEventListener('cancel', e => { e.preventDefault(); resume(); });
+$('home').onclick = () => { w.place = 'nave'; w.x = 0; w.z = 12; w.yaw = 0; w.pitch = 0; w.cooldown = 2; save(); resume(); };
+let resetArmed = false;
+$('new').onclick = () => { if (!resetArmed) {
+    resetArmed = true;
+    $('new').textContent = 'Forget permanently?';
+    return;
+} w = initial(); resetArmed = false; $('new').textContent = 'Forget this place'; save(); roster(); resume(); };
+addEventListener('keydown', e => { if (e.code === 'Escape' && !menu.open) {
+    pause();
+    return;
+} if (!active || e.target instanceof HTMLInputElement)
+    return; if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyF', 'Space'].includes(e.code)) {
+    e.preventDefault();
+    keys.add(e.code);
+} if (!e.repeat && e.code === 'KeyR')
+    autoWalk = !autoWalk; if (!e.repeat && ['Digit1', 'Digit2', 'Digit3'].includes(e.code))
+    separate(w, Number(e.code.slice(-1)) - 1); });
+addEventListener('keyup', e => keys.delete(e.code));
+addEventListener('blur', () => { if (active)
+    pause(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden && active)
+    pause(); });
+canvas.onpointerdown = e => { if (!active)
+    return; drag = true; canvas.setPointerCapture(e.pointerId); };
+canvas.onpointerup = () => drag = false;
+canvas.onpointercancel = () => drag = false;
+canvas.onpointermove = e => { if (drag && active) {
+    w.yaw -= e.movementX * .004;
+    w.pitch = Math.max(-1.2, Math.min(1.2, w.pitch - e.movementY * .003));
+} };
+document.querySelectorAll('[data-key]').forEach(b => { b.onpointerdown = e => { e.preventDefault(); keys.add(b.dataset.key); b.setPointerCapture(e.pointerId); }; b.onpointerup = b.onpointercancel = () => keys.delete(b.dataset.key); });
+document.querySelectorAll('[data-companion]').forEach(b => b.onclick = () => { if (active)
+    separate(w, Number(b.dataset.companion)); });
+$('attend').onclick = () => { focusToggle = !focusToggle; $('attend').textContent = focusToggle ? 'Release' : 'Attend'; };
+const names = { nave: 'THE HOUSE OF BREATH', stair: 'THE ASCENT WITHIN', garden: 'WHAT THE LEAVES REMEMBER', water: 'THE WATER ABOVE THE WATER', crypt: 'THE NAMES BENEATH THE NAME' };
+function frame(now) {
+    requestAnimationFrame(frame);
+    const dt = Math.min(.05, (now - last) / 1000);
+    last = now;
+    if (active) {
+        let forward = (keys.has('KeyW') || autoWalk ? 1 : 0) - (keys.has('KeyS') ? 1 : 0), side = (keys.has('KeyD') ? 1 : 0) - (keys.has('KeyA') ? 1 : 0);
+        const length = Math.hypot(forward, side) || 1;
+        forward /= length;
+        side /= length;
+        w.yaw += ((keys.has('ArrowLeft') ? 1 : 0) - (keys.has('ArrowRight') ? 1 : 0)) * dt * 1.5;
+        w.pitch = Math.max(-1.2, Math.min(1.2, w.pitch + ((keys.has('ArrowUp') ? 1 : 0) - (keys.has('ArrowDown') ? 1 : 0)) * dt));
+        walk(w, (-Math.sin(w.yaw) * forward + Math.cos(w.yaw) * side) * dt * 3.5, (-Math.cos(w.yaw) * forward - Math.sin(w.yaw) * side) * dt * 3.5);
+        tick(w, dt, { moving: !!(forward || side), target: renderer.target(w), focus: settings.easy || focusToggle || keys.has('KeyF') });
+        audio.update(w);
+        if (w.events.length) {
+            const e = w.events.shift();
+            audio.event(e);
+            $('caption').textContent = e.text;
+            captionTime = 8;
+            eventCount++;
+            if (settings.subtitles)
+                $('soundCaption').textContent = e.kind === 'cat' ? '[a purr behind the stone]' : e.kind === 'angel' ? '[a thousand small lids opening]' : '[the building answers, far below]';
+        }
+        captionTime -= dt;
+        if (captionTime <= 0) {
+            $('caption').textContent = '';
+            $('soundCaption').textContent = '';
+        }
+        if (w.place === 'crypt' && Math.hypot(w.x + 4, w.z + 6) < 2 && captionTime <= 0) {
+            $('caption').textContent = `To ${witnesses[w.letter].name}: I have kept your place at the table.`;
+            captionTime = 6;
+        }
+        saveTime += dt;
+        if (saveTime > 4) {
+            save();
+            saveTime = 0;
+        }
+    }
+    if (w.place !== lastSpace || w.turns !== lastTurns) {
+        $('blink').classList.add('closed');
+        setTimeout(() => $('blink').classList.remove('closed'), 60);
+        lastSpace = w.place;
+        lastTurns = w.turns;
+    }
+    $('location').textContent = names[w.place];
+    renderer.draw(w, active ? dt : 0, settings.reduced);
+}
+requestAnimationFrame(frame);
+addEventListener('pagehide', save);
