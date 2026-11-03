@@ -1,5 +1,5 @@
 import { manifestation, witnessGravity, witnessBodyHeight, rootObstructs } from './witnesses.js';
-import { rooms, floorHeight, insideRoom, roomPoint, columnHeight } from './rooms.js';
+import { rooms, floorHeight, insideRoom, roomPoint, columnHeight, pool, bridgeDeck, tableBounds, gardenPiers } from './rooms.js';
 export const stairs = Array.from({ length: 36 }, (_, i) => ({ x: 0, z: 8 - i * .7, y: i * .23, width: 4, depth: .72 }));
 export function surfaces(place, x, z) {
     const heights = [floorHeight(place, x, z)];
@@ -10,22 +10,109 @@ export function surfaces(place, x, z) {
     return heights.sort((a, b) => a - b);
 }
 export function support(place, x, z, maximum = Infinity) { return Math.max(floorHeight(place, x, z), ...surfaces(place, x, z).filter(y => y <= maximum + .001)); }
-export function groundAt(w, x, z, maximum = Infinity) { const m = manifestation(w, 'thomas'), floor = support(w.place, x, z, maximum); return m && Math.abs(x - m.x) <= 2 && Math.abs(z - m.z) <= 2 && m.y <= maximum + .001 ? Math.max(floor, m.y) : floor; }
-export function obstructed(w, x, z, y = w.y) {
+const thronePresent = (w) => w.place === 'crypt' && (w.throne || Object.values(w.waitSpots).some(s => s?.place === 'crypt' && s.enthroned));
+const onBridge = (x, z, radius = 0) => Math.abs(x) <= bridgeDeck.halfWidth - radius && z >= bridgeDeck.back && z <= bridgeDeck.front;
+export function groundAt(w, x, z, maximum = Infinity) {
+    const m = manifestation(w, 'thomas'), table = rooms[w.place].table, tableY = floorHeight(w.place, table.x, table.z) + tableBounds.top;
+    let floor = support(w.place, x, z, maximum);
+    if (w.place === 'water' && w.bridge && onBridge(x, z) && bridgeDeck.top <= maximum + .001)
+        floor = Math.max(floor, bridgeDeck.top);
+    if (Math.abs(x - table.x) <= tableBounds.halfWidth && Math.abs(z - table.z) <= tableBounds.halfWidth && tableY <= maximum + .001)
+        floor = Math.max(floor, tableY);
+    if (thronePresent(w) && Math.abs(x) <= 1.35 && z >= -9.8 && z <= -8.05 && 1.4 <= maximum + .001)
+        floor = Math.max(floor, 1.4);
+    return m && Math.abs(x - m.x) <= 2 && Math.abs(z - m.z) <= 2 && m.y <= maximum + .001 ? Math.max(floor, m.y) : floor;
+}
+export function obstructed(w, x, z, y = w.y, radius = .16, bodyHeight = witnessBodyHeight(w)) {
     if (rootObstructs(w, x, z, y))
         return true;
     if (!manifestation(w, 'bartholomew'))
         for (const { x: px, z: pz } of rooms[w.place].columns)
-            if (y < columnHeight(w.place) && Math.hypot(x - px, z - pz) < (manifestation(w, 'alphaeus') ? .7 : 1.15))
+            if (y < columnHeight(w.place) && Math.hypot(x - px, z - pz) < .99 + radius)
                 return true;
-    if (w.place === 'water' && !w.bridge && Math.abs(x) < 4 && z < 2 && z > -6)
+    if (w.place === 'garden')
+        for (const p of gardenPiers)
+            if (y < p.top && Math.hypot(x - p.x, z - p.z) < p.radius + radius)
+                return true;
+    if (w.place === 'water' && x > pool.left && x < pool.right && z > pool.back && z < pool.front && !(w.bridge && onBridge(x, z, radius)))
         return true;
+    const table = rooms[w.place].table, tableY = floorHeight(w.place, table.x, table.z) + tableBounds.top;
+    if (y < tableY - .02 && Math.abs(x - table.x) < tableBounds.halfWidth + radius && Math.abs(z - table.z) < tableBounds.halfWidth + radius)
+        return true;
+    if (thronePresent(w)) {
+        if (y < 1.4 - .02 && Math.abs(x) < 1.58 + radius && z > -10.1 - radius && z < -7.9 + radius)
+            return true;
+        if (y < 5.85 && Math.abs(x) < 1.68 + radius && z > -10.25 - radius && z < -9.65 + radius)
+            return true;
+        if (y < 2.53 && Math.abs(Math.abs(x) - 1.43) < .23 + radius && z > -10.15 - radius && z < -8 + radius)
+            return true;
+    }
     if (w.place === 'nave' && !w.skin && !w.stable && Math.abs(x) < 3 && Math.abs(z + 2) < .55 && y < 4)
         return true;
     if (w.place === 'stair')
         for (const top of surfaces('stair', x, z))
-            if (top > y + .32 && top - .3 < y + witnessBodyHeight(w) - .05)
+            if (top > y + .34 && top - .3 < y + bodyHeight - .05)
                 return true;
+    return false;
+}
+// Actors share the player's solid geometry. Search near the intended formation point,
+// then trace there in small steps, so a gaze turn cannot pull a body through a pier.
+export function actorPlacement(w, x, z, maximum = w.y + .34, radius = .38, bodyHeight = 1.9) {
+    const desired = roomPoint(w.place, x, z, radius + .1);
+    const candidate = (px, pz) => { if (!insideRoom(w.place, px, pz, radius + .1))
+        return; const y = groundAt(w, px, pz, maximum); if (!obstructed(w, px, pz, y, radius, bodyHeight))
+        return { x: px, y, z: pz }; };
+    const direct = candidate(desired.x, desired.z);
+    if (direct)
+        return direct;
+    for (let ring = 1; ring <= 14; ring++)
+        for (let i = 0; i < 24; i++) {
+            const a = i * Math.PI / 12, p = candidate(desired.x + Math.sin(a) * ring * .25, desired.z + Math.cos(a) * ring * .25);
+            if (p)
+                return p;
+        }
+    return candidate(w.x, w.z) ?? { x: w.x, y: w.y, z: w.z };
+}
+export function traceActor(w, from, to, maxStep = .34, radius = .38, bodyHeight = 1.9) {
+    const count = Math.max(1, Math.ceil(Math.hypot(to.x - from.x, to.z - from.z) / .12)), dx = (to.x - from.x) / count, dz = (to.z - from.z) / count, actor = { ...w, ...from };
+    let p = { ...from };
+    const move = (x, z) => { Object.assign(actor, p); if (!insideRoom(w.place, x, z, radius + .1) || obstructed(actor, x, z, p.y, radius, bodyHeight))
+        return; const y = groundAt(w, x, z, p.y + maxStep); p = { x, y, z }; };
+    for (let i = 0; i < count; i++) {
+        move(p.x + dx, p.z);
+        move(p.x, p.z + dz);
+    }
+    return p;
+}
+export function occludesSegment(w, from, to, ignore) {
+    const distance = Math.hypot(to.x - from.x, to.y - from.y, to.z - from.z), count = Math.ceil(distance / .12);
+    for (let i = 1; i < count; i++) {
+        const t = i / count;
+        if (distance * (1 - t) < .08)
+            break;
+        const x = from.x + (to.x - from.x) * t, y = from.y + (to.y - from.y) * t, z = from.z + (to.z - from.z) * t;
+        if (!insideRoom(w.place, x, z) || y < floorHeight(w.place, x, z) - .01)
+            return true;
+        if (!manifestation(w, 'bartholomew') && rooms[w.place].columns.some(p => y < columnHeight(w.place) && Math.hypot(x - p.x, z - p.z) < .7))
+            return true;
+        if (w.place === 'garden' && gardenPiers.some(p => y < p.top && Math.hypot(x - p.x, z - p.z) < p.radius))
+            return true;
+        if (w.place === 'stair' && stairs.some(s => Math.abs(x - s.x) < s.width / 2 && Math.abs(z - s.z) < s.depth / 2 && y > s.y - .3 && y < s.y + .015))
+            return true;
+        if (w.place === 'nave' && !w.skin && !w.stable && y < 4 && Math.abs(x) < 3 && Math.abs(z + 2) < .12)
+            return true;
+        const table = rooms[w.place].table, tableY = floorHeight(w.place, table.x, table.z) + tableBounds.top;
+        if (ignore !== 'table' && y < tableY && y > tableY - .18 && Math.abs(x - table.x) < tableBounds.halfWidth && Math.abs(z - table.z) < tableBounds.halfWidth)
+            return true;
+        if (thronePresent(w)) {
+            if (y < 4.95 && Math.abs(x) < 1.35 && z > -10.2 && z < -9.65)
+                return true;
+            if (y < 2.53 && y > 1.8 && Math.abs(Math.abs(x) - 1.43) < .23 && z > -10.15 && z < -8)
+                return true;
+            if (y < 1.4 && y > .2 && Math.abs(x) < 1.5 && z > -10 && z < -8)
+                return true;
+        }
+    }
     return false;
 }
 export function stepSupport(w, dt) {
@@ -61,14 +148,10 @@ export function settleWitnessBody(w, restoring = false) {
         small.visual = Math.max(small.visual, .1);
     }
     if (restoring && obstructed(w, w.x, w.z)) {
-        if (w.place === 'stair') {
-            w.x = w.x < 0 ? -2.6 : 2.6;
-            w.y = 0;
-        }
-        else if (w.place === 'water')
-            w.x = w.x < 0 ? -4.6 : 4.6;
-        else
-            w.z += 1.2;
+        const safe = actorPlacement(w, w.x, w.z, w.y + .34, .16, witnessBodyHeight(w));
+        w.x = safe.x;
+        w.y = safe.y;
+        w.z = safe.z;
     }
 }
 // Project gaze onto real horizontal surfaces, then trace a reachable path to the chosen point.

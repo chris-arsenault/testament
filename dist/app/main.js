@@ -1,9 +1,10 @@
 import { EncounterUI } from './encounter-ui.js';
+import { EventCaptions, InteractionFeedback, soundDescription } from './interaction-feedback.js';
 import { menuTongue } from './languages.js';
 import { witnessEffects } from './witnesses.js';
 import { interruptAttention } from './attention.js';
 import { PuzzleUI } from './puzzle-ui.js';
-import { captureMouse, lookDelta, volumeMix } from './look.js';
+import { captureMouse, lookDelta, volumeMix, LookContact } from './look.js';
 import { Narrator, roomRecords } from './narrative.js';
 import { Cathedral } from './rendering.js';
 import { Sound } from './audio.js';
@@ -28,8 +29,8 @@ catch (e) {
 }
 const narrator = new Narrator();
 let roomTime = 0, castTime = 0;
-const audio = new Sound(), keys = new Set();
-let active = false, started = false, last = performance.now(), saveTime = 0, captionTime = 0, drag = false, eventCount = 0, autoWalk = false, lastSpace = w.place, lastTurns = w.turns;
+const audio = new Sound(), keys = new Set(), contact = new LookContact(), captions = new EventCaptions(), feedback = new InteractionFeedback();
+let active = false, started = false, last = performance.now(), saveTime = 0, soundTime = 0, autoWalk = false, lastSpace = w.place, lastTurns = w.turns, lastLetterRead = '';
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 let volume = 65;
 try {
@@ -49,38 +50,58 @@ document.body.classList.toggle('quiet', reduced);
 let softLook = false;
 function fallbackLook() { if (!active)
     return; softLook = true; canvas.style.cursor = 'none'; $('lookHint').textContent = 'MOUSE · LOOK WITHIN VIEW / ESC · RELEASE'; }
-function capture() { if (active)
-    captureMouse(canvas, () => fallbackLook()); }
+function capture(mouseGesture = false) { if (active)
+    captureMouse(canvas, () => fallbackLook(), mouseGesture); }
 function rotate(x, y) { const next = lookDelta(w.yaw, w.pitch, x, y); w.yaw = next.yaw; w.pitch = next.pitch; }
-let wasLocked = false;
+let wasLocked = false, releasePending = false;
+function releaseMouse() { if (document.pointerLockElement === canvas) {
+    releasePending = true;
+    document.exitPointerLock();
+} }
 document.addEventListener('pointerlockchange', () => { const locked = document.pointerLockElement === canvas; canvas.classList.toggle('captured', locked); if (locked) {
     softLook = false;
     canvas.style.cursor = '';
 } if (locked && !active) {
-    document.exitPointerLock();
+    releaseMouse();
     return;
-} if (wasLocked && !locked && active)
-    pause(); wasLocked = locked; if (locked)
-    $('lookHint').textContent = 'MOUSE · LOOK / ESC · RELEASE'; });
+} const intentional = releasePending && !locked; if (!locked)
+    releasePending = false; if (wasLocked && !locked && active && !intentional)
+    pause(); wasLocked = locked; $('lookHint').textContent = locked ? 'MOUSE · LOOK / ESC · RELEASE' : 'CLICK TO CAPTURE MOUSE · ARROWS TO LOOK'; });
 document.addEventListener('pointerlockerror', fallbackLook);
 document.addEventListener('mousemove', e => { if (active && (document.pointerLockElement === canvas || (softLook && e.target === canvas)))
     rotate(e.movementX, e.movementY); });
-function suspend() { active = false; interruptAttention(w); softLook = false; canvas.style.cursor = ''; keys.clear(); autoWalk = false; drag = false; if (document.pointerLockElement === canvas)
-    document.exitPointerLock(); audio.pause(true); document.body.classList.remove('cinematic'); $('roomCard').classList.remove('visible'); $('narrator').classList.remove('speaking'); $('puzzleUse').classList.add('hidden'); }
-function continueWorld(lock) { active = started; keys.clear(); audio.pause(false); last = performance.now(); if (lock)
-    capture(); }
-const puzzles = new PuzzleUI(() => w, audio.effects, suspend, continueWorld, reduced);
-const encounters = new EncounterUI(() => w, save, suspend, continueWorld);
+function suspend(duckEffects = true) { active = false; interruptAttention(w); softLook = false; canvas.style.cursor = ''; keys.clear(); autoWalk = false; contact.cancel(); releaseMouse(); audio.pause(true, duckEffects); feedback.clear(); document.body.classList.add('in-overlay'); document.body.classList.remove('cinematic'); $('roomCard').classList.remove('visible'); $('narrator').classList.remove('speaking'); $('castCard').classList.remove('visible'); $('puzzleUse').classList.add('hidden'); }
+function continueWorld(lock) { if (!lock) {
+    pause();
+    return;
+} active = started; keys.clear(); audio.pause(false); document.body.classList.remove('in-overlay'); last = performance.now(); capture(); }
+const puzzles = new PuzzleUI(() => w, audio.effects, () => suspend(false), continueWorld, reduced);
+const encounters = new EncounterUI(() => w, save, suspend, continueWorld, id => feedback.command(witnesses.find(p => p.id === id).name, 'called'));
 function interact(point) { if (!active)
     return false; const target = renderer.interaction(w, point); if (!target)
-    return false; if (target.kind === 'witness')
+    return false; if (target.kind === 'witness') {
+    audio.response('examine');
     encounters.open(target.id);
-else if (target.kind === 'puzzle')
+}
+else if (target.kind === 'puzzle') {
+    audio.response('examine');
     puzzles.open();
-else
-    touchAngel(w); return true; }
+}
+else {
+    const answered = touchAngel(w);
+    feedback.pulse(!answered);
+    if (!answered)
+        audio.response('refused');
+} return true; }
+function command(index) { if (!active)
+    return; const id = w.party[index]; if (!id)
+    return; const returning = w.left.includes(id), accepted = separate(w, index); feedback.command(witnesses.find(p => p.id === id).name, !accepted ? 'refused' : returning ? 'called' : w.waitSpots[id]?.enthroned ? 'throne' : 'home'); if (!accepted)
+    audio.response('refused'); save(); }
 $('puzzleUse').onclick = () => interact();
-function enterRoom() { const r = roomRecords[w.place]; $('roomTitle').textContent = r.title; $('roomDetail').textContent = r.detail; $('roomRecord').textContent = 'LOCATION RECORD / ' + r.record; $('roomKicker').textContent = w.place === 'stair' ? 'TAKE ' + String(w.turns + 1).padStart(2, '0') + ' / THE FIRST ASCENT' : 'FIELD RECORD / ' + String(w.returns + 1).padStart(2, '0') + ' / ARRIVAL NOT CONFIRMED'; roomTime = 5.2; castTime = 0; narrator.enter(w); }
+function enterRoom() { captions.clear(); soundTime = 0; lastLetterRead = ''; $('caption').textContent = ''; $('soundCaption').textContent = ''; const r = roomRecords[w.place]; $('roomTitle').textContent = r.title; $('roomDetail').textContent = r.detail; $('roomRecord').textContent = 'LOCATION RECORD / ' + r.record; $('roomKicker').textContent = w.place === 'stair' ? 'TAKE ' + String(w.turns + 1).padStart(2, '0') + ' / THE FIRST ASCENT' : 'FIELD RECORD / ' + String(w.returns + 1).padStart(2, '0') + ' / ARRIVAL NOT CONFIRMED'; roomTime = 5.2; castTime = 0; narrator.enter(w); }
+function detectArrival() { if (w.place === lastSpace && w.turns === lastTurns)
+    return; $('blink').classList.add('closed'); setTimeout(() => $('blink').classList.remove('closed'), 60); lastSpace = w.place; lastTurns = w.turns; feedback.target(false); $('puzzleUse').classList.add('hidden'); hoverTime = 0; if (started)
+    enterRoom(); }
 function cast(role, name, detail) { $('castRole').textContent = role; $('castName').textContent = name; $('castDetail').textContent = detail; castTime = 7; }
 function save() { try {
     localStorage.setItem('testament-cathedral-v2', JSON.stringify({ ...w, events: [] }));
@@ -90,21 +111,19 @@ catch {
 } $('storageNote').textContent = storage ? '' : 'This browser cannot keep your place after closing.'; }
 function language() { const t = menuTongue(w.tongue); $('menuHeading').textContent = t.heading; $('resume').textContent = t.resume; $('home').textContent = t.home; $('new').textContent = resetArmed ? t.confirm : t.forget; document.getElementById('menuHeading').lang = ['en', 'fr', 'pt'][w.tongue]; }
 function pause() { if (menu.open || puzzles.isOpen || encounters.isOpen)
-    return; active = false; interruptAttention(w); softLook = false; canvas.style.cursor = ''; if (document.pointerLockElement === canvas)
-    document.exitPointerLock(); autoWalk = false; keys.clear(); drag = false; audio.pause(true); language(); menu.showModal(); menu.tabIndex = -1; menu.focus(); menu.scrollTop = 0; save(); }
-function resume(lock = true) { menu.close(); active = started; audio.pause(false); keys.clear(); last = performance.now(); if (lock)
-    capture(); }
-$('enter').onclick = () => { started = true; active = true; capture(); $('veil').classList.add('hidden'); audio.start(); applyVolume(); enterRoom(); captionTime = 0; $('caption').textContent = ''; };
+    return; suspend(); language(); menu.showModal(); menu.tabIndex = -1; menu.focus(); menu.scrollTop = 0; save(); }
+function resume() { menu.close(); resetArmed = false; continueWorld(true); }
+$('enter').onclick = () => { started = true; active = true; capture(); $('veil').classList.add('hidden'); document.body.classList.remove('in-overlay'); audio.start(); applyVolume(); enterRoom(); };
 $('menuButton').onclick = pause;
 $('resume').onclick = () => resume();
-menu.addEventListener('cancel', e => { e.preventDefault(); resume(false); });
+menu.addEventListener('cancel', e => e.preventDefault());
 $('home').onclick = () => { w.place = 'nave'; w.x = 0; w.y = 0; w.vy = 0; w.z = 12; w.yaw = 0; interruptAttention(w); w.pitch = 0; w.cooldown = 2; save(); resume(); };
 let resetArmed = false;
 $('new').onclick = () => { if (!resetArmed) {
     resetArmed = true;
     $('new').textContent = menuTongue(w.tongue).confirm;
     return;
-} w = initial(); puzzles.reset(); resetArmed = false; $('new').textContent = menuTongue(w.tongue).forget; save(); language(); resume(); };
+} w = initial(); puzzles.reset(); captions.clear(); lastLetterRead = ''; resetArmed = false; $('new').textContent = menuTongue(w.tongue).forget; save(); language(); resume(); };
 addEventListener('keydown', e => { if (puzzles.isOpen || encounters.isOpen)
     return; if ((e.code === 'Escape' || e.key === 'Escape') && !menu.open) {
     e.preventDefault();
@@ -117,7 +136,7 @@ addEventListener('keydown', e => { if (puzzles.isOpen || encounters.isOpen)
     keys.add(e.code);
 } if (!e.repeat && e.code === 'KeyR')
     autoWalk = !autoWalk; if (!e.repeat && ['Digit1', 'Digit2', 'Digit3'].includes(e.code))
-    separate(w, Number(e.code.slice(-1)) - 1); });
+    command(Number(e.code.slice(-1)) - 1); });
 addEventListener('keyup', e => keys.delete(e.code));
 addEventListener('blur', () => { if (active)
     pause(); });
@@ -128,41 +147,41 @@ canvas.onpointerleave = () => { if (softLook) {
     canvas.style.cursor = '';
     $('lookHint').textContent = 'CLICK TO LOOK · ARROWS TO LOOK';
 } };
-let touchTravel = 0;
 canvas.onpointerdown = e => { if (!active || e.button !== 0)
     return; if (e.pointerType === 'mouse') {
+    if (document.pointerLockElement !== canvas && !softLook) {
+        capture(true);
+        return;
+    }
     if (!interact())
-        capture();
+        capture(true);
     return;
-} drag = true; touchTravel = 0; canvas.setPointerCapture(e.pointerId); };
-canvas.onpointerup = e => { if (drag && active && touchTravel < 9) {
+} if (contact.begin(e.pointerId, e.clientX, e.clientY))
+    canvas.setPointerCapture(e.pointerId); };
+canvas.onpointerup = e => { contact.move(e.pointerId, e.clientX, e.clientY); const result = contact.end(e.pointerId); if (result?.tap && active) {
     const rect = canvas.getBoundingClientRect();
     interact({ x: (e.clientX - rect.left) / rect.width * 2 - 1, y: 1 - (e.clientY - rect.top) / rect.height * 2 });
-} drag = false; };
-canvas.onpointercancel = () => drag = false;
-canvas.onpointermove = e => { if (e.pointerType !== 'mouse' && drag && active) {
-    touchTravel += Math.hypot(e.movementX, e.movementY);
-    rotate(e.movementX, e.movementY);
+} if (canvas.hasPointerCapture(e.pointerId))
+    canvas.releasePointerCapture(e.pointerId); };
+canvas.onpointercancel = e => { contact.end(e.pointerId); };
+canvas.onlostpointercapture = e => { contact.end(e.pointerId); };
+canvas.onpointermove = e => { if (e.pointerType !== 'mouse' && active) {
+    const delta = contact.move(e.pointerId, e.clientX, e.clientY);
+    if (delta)
+        rotate(delta.x, delta.y);
 } };
-document.querySelectorAll('[data-key]').forEach(b => { b.onpointerdown = e => { e.preventDefault(); keys.add(b.dataset.key); b.setPointerCapture(e.pointerId); }; b.onpointerup = b.onpointercancel = () => keys.delete(b.dataset.key); });
-document.querySelectorAll('[data-companion]').forEach(b => b.onclick = () => { if (active)
-    separate(w, Number(b.dataset.companion)); });
+document.querySelectorAll('[data-key]').forEach(b => { b.onpointerdown = e => { e.preventDefault(); if (!active)
+    return; keys.add(b.dataset.key); b.setPointerCapture(e.pointerId); }; b.onpointerup = b.onpointercancel = b.onlostpointercapture = () => keys.delete(b.dataset.key); });
+document.querySelectorAll('[data-companion]').forEach(b => b.onclick = () => command(Number(b.dataset.companion)));
 let hoverTime = 0;
 function frame(now) {
     requestAnimationFrame(frame);
     const dt = Math.min(.05, (now - last) / 1000);
     last = now;
     puzzles.update(dt);
+    feedback.update(dt);
     if ((puzzles.isOpen || encounters.isOpen) && !document.hidden)
         updateWaiting(w, dt);
-    hoverTime -= dt;
-    if (hoverTime <= 0) {
-        hoverTime = .15;
-        const target = active ? renderer.interaction(w) : null;
-        $('puzzleUse').classList.toggle('hidden', !target);
-        if (target)
-            $('puzzleUse').textContent = target.kind === 'witness' ? witnesses.find(p => p.id === target.id).name : target.kind === 'puzzle' ? 'THE TABLE' : 'THE MANY-EYED';
-    }
     if (active) {
         let forward = (keys.has('KeyW') || autoWalk ? 1 : 0) - (keys.has('KeyS') ? 1 : 0), side = (keys.has('KeyD') ? 1 : 0) - (keys.has('KeyA') ? 1 : 0);
         const length = Math.hypot(forward, side) || 1;
@@ -172,43 +191,37 @@ function frame(now) {
         w.pitch = Math.max(-1.2, Math.min(1.2, w.pitch + ((keys.has('ArrowUp') ? 1 : 0) - (keys.has('ArrowDown') ? 1 : 0)) * dt));
         walk(w, (-Math.sin(w.yaw) * forward + Math.cos(w.yaw) * side) * dt * 3.5, (-Math.cos(w.yaw) * forward - Math.sin(w.yaw) * side) * dt * 3.5);
         tick(w, dt, { moving: !!(forward || side), ...renderer.target(w) });
+        detectArrival();
         audio.update(w);
-        if (w.events.length) {
-            const e = w.events.shift();
+        for (const e of w.events.splice(0)) {
             audio.event(e);
             if (e.text) {
                 narrator.event(e);
+                captions.offer(e.text);
                 if (e.kind === 'cat')
                     cast('STARRING', 'EVE', 'AS HERSELF / BEFORE HERSELF');
                 if (e.kind === 'angel')
                     cast('SPECIAL APPEARANCE', 'THE MANY-EYED', 'NO RECORD OF ARRIVAL');
-                $('caption').textContent = e.text;
-                captionTime = 8;
-                eventCount++;
-                $('soundCaption').textContent = e.kind === 'cat' ? '[a purr behind the stone]' : e.kind === 'angel' ? '[a thousand small lids opening]' : '[the building answers, far below]';
             }
-            else if (e.kind === 'witness' && e.witness) {
-                $('soundCaption').textContent = '[' + witnessEffects[e.witness].sound + ']';
-                captionTime = Math.max(captionTime, 4);
+            const description = e.kind === 'witness' && e.witness ? '[' + witnessEffects[e.witness].sound + ']' : soundDescription(e);
+            if (description) {
+                $('soundCaption').textContent = description;
+                soundTime = 3.5;
             }
-            else if (e.kind === 'cat-link') {
-                captionTime = Math.max(captionTime, 3);
-                $('soundCaption').textContent = '[a purr in two places]';
-            }
-            else if (e.kind === 'gaze-cue')
-                $('soundCaption').textContent = '[a low rush of air]';
-            else if (e.kind === 'chthonic')
-                $('soundCaption').textContent = '[stone resounds below]';
         }
-        captionTime -= dt;
-        if (captionTime <= 0) {
-            $('caption').textContent = '';
+        $('caption').textContent = captions.update(dt);
+        soundTime = Math.max(0, soundTime - dt);
+        if (soundTime === 0)
             $('soundCaption').textContent = '';
+        if (w.place === 'crypt' && Math.hypot(w.x + 4, w.z + 6) < 2) {
+            const letter = String(w.letter);
+            if (lastLetterRead !== letter) {
+                captions.offer(`To ${witnesses[w.letter].name}: I have kept your place at the table.`);
+                lastLetterRead = letter;
+            }
         }
-        if (w.place === 'crypt' && Math.hypot(w.x + 4, w.z + 6) < 2 && captionTime <= 0) {
-            $('caption').textContent = `To ${witnesses[w.letter].name}: I have kept your place at the table.`;
-            captionTime = 6;
-        }
+        else
+            lastLetterRead = '';
         roomTime = Math.max(0, roomTime - dt);
         castTime = Math.max(0, castTime - dt);
         const verse = narrator.update(dt, true);
@@ -233,17 +246,21 @@ function frame(now) {
             saveTime = 0;
         }
     }
-    if (w.place !== lastSpace || w.turns !== lastTurns) {
-        $('blink').classList.add('closed');
-        setTimeout(() => $('blink').classList.remove('closed'), 60);
-        lastSpace = w.place;
-        lastTurns = w.turns;
-        if (started)
-            enterRoom();
-    }
+    detectArrival();
     $('location').textContent = roomRecords[w.place].title;
     renderer.draw(w, active ? dt : 0, reduced);
     renderer.table.material.emissiveIntensity = puzzles.states[w.place].solved ? .05 : .6;
+    // Hit testing follows movement and the rendered camera, never the previous frame.
+    hoverTime -= dt;
+    if (hoverTime <= 0) {
+        hoverTime = .1;
+        const target = active ? renderer.interaction(w) : null;
+        feedback.target(!!target);
+        $('puzzleUse').classList.toggle('hidden', !target);
+        if (target)
+            $('puzzleUse').textContent = target.kind === 'witness' ? witnesses.find(p => p.id === target.id).name : target.kind === 'puzzle' ? 'THE TABLE' : 'THE MANY-EYED';
+        document.querySelectorAll('[data-companion]').forEach(b => { const id = w.party[Number(b.dataset.companion)], person = witnesses.find(p => p.id === id); b.disabled = !id; b.setAttribute('aria-pressed', String(!!id && w.left.includes(id))); b.setAttribute('aria-label', person ? person.name : 'No companion'); });
+    }
 }
 requestAnimationFrame(frame);
 addEventListener('pagehide', () => { save(); puzzles.save(); });

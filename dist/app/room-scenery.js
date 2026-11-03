@@ -1,9 +1,24 @@
 import * as T from '../three.module.js';
-import { rooms, homes, insideRoom, floorHeight, columnHeight } from './rooms.js';
+import { rooms, homes, insideRoom, floorHeight, columnHeight, gardenPiers, portalScale } from './rooms.js';
 import { material, mesh, box, lathe, tube, ring, batch, archBand, vane } from './modeling.js';
-import { columnModel, portalModel, roseModel, windowModel } from './models.js';
+import { columnModel, portalModel, portalSurround, roseModel, windowModel } from './models.js';
 import { stairs } from './space.js';
 const flat = (g, m, x, y, z, sx, sz) => { const p = mesh(g, new T.PlaneGeometry(sx, sz), m, x, y, z); p.rotation.x = -Math.PI / 2; return p; };
+// Depth at which a door's side return meets the room polygon. Vertex doors in the
+// archive need longer returns than doors cut into a flat wall.
+export function portalWallDepth(place, door, offset) {
+    const r = rooms[place], p = r.doors[door], rotation = door === 'left' ? Math.PI / 2 : door === 'right' ? -Math.PI / 2 : 0, nx = -Math.sin(rotation), nz = -Math.cos(rotation), x = p.x + Math.cos(rotation) * offset, z = p.z - Math.sin(rotation) * offset;
+    let depth = -Infinity;
+    for (let i = 0; i < r.shape.length; i++) {
+        const a = r.shape[i], b = r.shape[(i + 1) % r.shape.length], ex = b[0] - a[0], ez = b[1] - a[1], den = nx * ez - nz * ex;
+        if (Math.abs(den) < 1e-8)
+            continue;
+        const ax = a[0] - x, az = a[1] - z, t = (ax * ez - az * ex) / den, u = (ax * nz - az * nx) / den;
+        if (u >= 0 && u <= 1)
+            depth = Math.max(depth, t);
+    }
+    return Number.isFinite(depth) ? depth : .95;
+}
 export function groundGeometry(place) {
     const r = rooms[place];
     if (place !== 'garden') {
@@ -147,13 +162,27 @@ export class RoomScenery {
                 }
             }
         }
-        const portal = portalModel(stone, dark, gold), scale = place === 'water' ? .66 : place === 'garden' ? .62 : place === 'crypt' ? .75 : place === 'scriptorium' ? .95 : 1;
+        const portal = portalModel(stone, dark, gold), scale = portalScale(place);
         for (const [name, p] of Object.entries(r.doors)) {
-            const d = portal.clone(true);
-            d.position.set(p.x, floorHeight(place, p.x, p.z) + (place === 'stair' && name === 'front' ? 8.1 : 0), p.z);
+            const d = portal.clone(true), elevation = place === 'stair' && name === 'front' ? 8.1 : 0;
+            d.position.set(p.x, floorHeight(place, p.x, p.z) + elevation, p.z);
             d.rotation.y = name === 'left' ? Math.PI / 2 : name === 'right' ? -Math.PI / 2 : 0;
             d.scale.y = scale;
             root.add(d);
+            if (place !== 'garden') {
+                const surround = portalSurround(stone, r.height - elevation, scale);
+                surround.position.copy(d.position);
+                surround.rotation.y = d.rotation.y;
+                solid.add(surround);
+                const returns = new T.Group();
+                returns.position.copy(d.position);
+                returns.rotation.y = d.rotation.y;
+                solid.add(returns);
+                for (const side of [-3.25, 3.25]) {
+                    const depth = portalWallDepth(place, name, side);
+                    box(returns, stone, side, (r.height - elevation) / 2, -(.95 + depth) / 2, .22, r.height - elevation, Math.abs(.95 - depth) + .15, .015);
+                }
+            }
         }
         const cm = [stone, dark, gold].map(m => { const c = m.clone(); c.transparent = true; this.columnMats.push(c); return c; }), column = columnModel(cm[0], cm[1], cm[2]);
         for (const p of r.columns) {
@@ -265,9 +294,13 @@ export class RoomScenery {
             grass.count = count;
             root.add(grass);
             for (const x of [-10, 10]) {
-                archBand(root, stone, 2, 2.5, 3, .2, .4, -6).position.x = x;
-                for (const side of [-1, 1])
-                    mesh(root, new T.CylinderGeometry(.2, .3, 2.5, 10), stone, x + side * 2, 1.25, -6);
+                const arch = archBand(root, stone, 2, 2.5, 3, .2, .4, -6);
+                arch.position.x = x;
+                arch.position.y = floorHeight(place, x, -6);
+            }
+            for (const p of gardenPiers) {
+                const base = floorHeight(place, p.x, p.z), height = p.top - base;
+                mesh(root, new T.CylinderGeometry(.2, p.radius, height, 10), stone, p.x, base + height / 2, p.z);
             }
         }
         return { root, ceiling, rose };

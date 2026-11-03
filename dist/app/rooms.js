@@ -36,3 +36,9 @@ export function roomPoint(place, x, z, margin = .5) { for (let i = 0; i < 100 &&
 } return { x, z, y: floorHeight(place, x, z) }; }
 export function nearPortal(place, x, z) { return Object.entries(rooms[place].doors).find(([, p]) => Math.hypot(x - p.x, z - p.z) < 1.05)?.[0]; }
 export const columnHeight = (place) => 11 * (place === 'water' ? .55 : place === 'crypt' ? .34 : 1);
+// Shared with the stonework and movement code: these are actual modeled surfaces.
+export const pool = { left: -4, right: 4, back: -6, front: 2 };
+export const bridgeDeck = { halfWidth: 1, back: -6.4, front: 2.4, top: .325 };
+export const tableBounds = { halfWidth: .9, top: 1.03 };
+export const gardenPiers = [-12, -8, 8, 12].map(x => ({ x, z: -6, radius: .3, top: floorHeight('garden', x < 0 ? -10 : 10, -6) + 2.5 }));
+export const portalScale = (place) => place === 'water' ? .66 : place === 'garden' ? .62 : place === 'crypt' ? .75 : place === 'scriptorium' ? .95 : 1;

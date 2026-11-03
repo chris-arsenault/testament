@@ -24,14 +24,49 @@ export function composeMovement(stage,sampleRate=22050,duration=32){
  return {left,right,sampleRate,duration};
 }
 export class Score {
- constructor(){this.ctx=null;this.volume=.55;this.muted=false;this.paused=false;this.stage=-1;this.current=null;this.cache=new Map();this.beatAt=0;}
+ constructor(){this.ctx=null;this.volume=.55;this.muted=false;this.paused=false;this.stage=-1;this.current=null;this.cache=new Map();this.beatAt=0;this.worker=null;this.pending=new Set();this.workerFailed=false;this.workerTimer=null;}
  start(){try{if(!this.ctx){this.ctx=new (globalThis.AudioContext||globalThis.webkitAudioContext)();this.master=this.ctx.createGain();const compressor=this.ctx.createDynamicsCompressor();compressor.threshold.value=-12;compressor.ratio.value=5;this.filter=this.ctx.createBiquadFilter();this.filter.type='lowpass';this.filter.frequency.value=20000;this.master.connect(this.filter);this.filter.connect(compressor);compressor.connect(this.ctx.destination);this.applyVolume();}this.ctx.resume();return true;}catch{return false;}}
  applyVolume(){if(this.master)this.master.gain.setTargetAtTime(this.muted?0:this.volume*(this.paused?.35:1),this.ctx.currentTime,.12);}
  setVolume(value){this.volume=Math.max(0,Math.min(1,value));this.applyVolume();}
  setMuted(value){this.muted=value;this.applyVolume();}
  setPaused(value){this.paused=value;this.applyVolume();}
- movement(stage){stage=Math.min(6,Math.max(0,stage));if(!this.ctx||this.stage===stage)return;this.stage=stage;let buffer=this.cache.get(stage);if(!buffer){const pcm=composeMovement(stage);buffer=this.ctx.createBuffer(2,pcm.left.length,pcm.sampleRate);buffer.copyToChannel(pcm.left,0);buffer.copyToChannel(pcm.right,1);this.cache.set(stage,buffer);}const src=this.ctx.createBufferSource(),gain=this.ctx.createGain();src.buffer=buffer;src.loop=true;src.connect(gain);gain.connect(this.master);const t=this.ctx.currentTime;gain.gain.setValueAtTime(0,t);gain.gain.linearRampToValueAtTime(.8,t+2);src.start();if(this.current){const old=this.current;old.gain.gain.cancelScheduledValues(t);old.gain.gain.setValueAtTime(old.gain.gain.value,t);old.gain.gain.linearRampToValueAtTime(0,t+2);old.src.stop(t+2.1);old.src.onended=()=>{old.src.disconnect();old.gain.disconnect();};}this.current={src,gain};}
+ movement(stage){
+  stage=Math.trunc(Math.min(6,Math.max(0,stage)));if(!this.ctx||!Number.isFinite(stage)||this.stage===stage)return;this.stage=stage;
+  if(this.cache.has(stage)){this.playMovement(this.cache.get(stage));return;}
+  if(this.pending.has(stage))return;
+  if(this.workerFailed||typeof Worker==='undefined'){this.fallbackMovement(stage);return;}
+  try{
+   if(!this.worker){
+    const worker=new Worker(new URL('./score-worker.js',import.meta.url),{type:'module'});this.worker=worker;
+    worker.onmessage=({data})=>{
+     if(this.worker!==worker||!this.pending.has(data?.stage))return;
+     if(data.error||!(data.left instanceof Float32Array)||!(data.right instanceof Float32Array)||!data.left.length||data.left.length!==data.right.length||!Number.isFinite(data.sampleRate)){this.failWorker();return;}
+     this.pending.delete(data.stage);const buffer=this.audioBuffer(data);this.cache.set(data.stage,buffer);
+     // A slow reply belongs in the cache, never in a room the player has left.
+     if(this.stage===data.stage)this.playMovement(buffer);
+     if(!this.pending.size){clearTimeout(this.workerTimer);this.workerTimer=null;}
+    };
+    worker.onerror=event=>{event.preventDefault?.();this.failWorker();};worker.onmessageerror=()=>this.failWorker();
+   }
+   this.pending.add(stage);this.worker.postMessage({stage});
+   if(!this.workerTimer)this.workerTimer=setTimeout(()=>this.failWorker(),15000);
+  }catch{this.failWorker();}
+ }
+ audioBuffer(pcm){const buffer=this.ctx.createBuffer(2,pcm.left.length,pcm.sampleRate);buffer.copyToChannel(pcm.left,0);buffer.copyToChannel(pcm.right,1);return buffer;}
+ failWorker(){this.worker?.terminate();this.worker=null;this.workerFailed=true;this.pending.clear();clearTimeout(this.workerTimer);this.workerTimer=null;if(this.ctx&&this.stage>=0&&!this.cache.has(this.stage))this.fallbackMovement(this.stage);}
+ fallbackMovement(stage){
+  // CSP or older browsers may reject module workers. A small, bounded drone
+  // keeps the cathedral audible without moving the expensive score back here.
+  const buffer=this.audioBuffer(composeFallback(stage));this.cache.set(stage,buffer);if(stage===this.stage)this.playMovement(buffer);
+ }
+ playMovement(buffer){const src=this.ctx.createBufferSource(),gain=this.ctx.createGain();src.buffer=buffer;src.loop=true;src.connect(gain);gain.connect(this.master);const t=this.ctx.currentTime;gain.gain.setValueAtTime(0,t);gain.gain.linearRampToValueAtTime(.8,t+2);src.start();if(this.current){const old=this.current;old.gain.gain.cancelScheduledValues(t);old.gain.gain.setValueAtTime(old.gain.gain.value,t);old.gain.gain.linearRampToValueAtTime(0,t+2);old.src.stop(t+2.1);old.src.onended=()=>{old.src.disconnect();old.gain.disconnect();};}this.current={src,gain};}
  tone(freq,duration=.6,volume=.12,type='sine'){if(!this.ctx)return;const t=this.ctx.currentTime,o=this.ctx.createOscillator(),g=this.ctx.createGain();o.type=type;o.frequency.setValueAtTime(freq,t);g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(volume,t+.012);g.gain.exponentialRampToValueAtTime(.0001,t+duration);o.connect(g);g.connect(this.master);o.start(t);o.stop(t+duration+.02);o.onended=()=>{o.disconnect();g.disconnect();};}
  cue(name){if(name==='purr'){this.tone(27.5,2,.17);this.tone(55.3,2,.06);}else if(name==='seal'){this.tone(330,2,.14);this.tone(495,2.5,.08);}else if(name==='radio'){this.tone(880,.08,.035);this.tone(1320,.13,.02);}else if(name==='step')this.tone(75,.08,.018,'triangle');else this.tone(440,.5,.06);}
  tension(value){if(!this.ctx||this.paused||value<.25)return;const now=this.ctx.currentTime;if(now>=this.beatAt){this.tone(45+value*15,.25,.055*value);this.beatAt=now+1.3-value*.85;}}
+}
+
+export function composeFallback(stage){
+ const sampleRate=8000,duration=8,size=sampleRate*duration,left=new Float32Array(size),right=new Float32Array(size),root=[55,51.913,48.999,46.249,65.406,58.270,65.406][stage];
+ for(let i=0;i<size;i++){const t=i/sampleRate,edge=Math.min(1,t/.4,(duration-t)/.6),body=Math.sin(TAU*root*t)*.08;left[i]=(body+Math.sin(TAU*root*2.002*t)*.025)*edge;right[i]=(body+Math.sin(TAU*root*1.998*t)*.025)*edge;}
+ return {left,right,sampleRate,duration};
 }

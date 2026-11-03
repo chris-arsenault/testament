@@ -283,3 +283,9 @@ Completed seven distinct spatial designs with shared geometry/collision layout d
 Strict compilation and 76 automated checks pass. Local browser review covered seven spaces, click recruitment, protected throne slots, both new puzzle completions, the simplified menu and phone-width encounter layout. See docs/SEVEN_ROOMS.md for the architecture, inventory and limits. Publication receipt follows in docs/RELEASE.md.
 
 Version 11 is published from `38ab4b3e25db645af2cb58131885477f19187728`; deployment `appgdep_6ae983e5be8c8191a1207d136fc1fe54` succeeded. The public entry and simplified menu were verified. All five requirements are complete, with evidence in docs/SEVEN_ROOMS.md.
+
+### 2026-11-03 — Parallel playability polish
+
+Completed three parallel reviews and integrated their fixes: physical architecture and actors, interaction/input/audio feedback, and seven deeper puzzle mechanisms. Shared support and collision now include furniture, bridge and resident bodies; followers detour without orbiting the player's gaze. Tables use connected mechanisms, geometric clues, action feedback and reversible moves. Audio generation moves to a worker; caption and modal transitions are explicit.
+
+Strict compilation and all 111 automated checks pass. Browser review verified every table layout, two complete puzzle solves, small-screen layouts, recruitment/orders, pause recovery, doorway seams and bridge height. The detailed defect/correction ledger, architecture and limits are in docs/POLISH_PASS.md; publication is recorded in docs/RELEASE.md.

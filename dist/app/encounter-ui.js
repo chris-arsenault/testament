@@ -6,20 +6,23 @@ export class EncounterUI {
     save;
     onOpen;
     onClose;
+    onRecruit;
     dialog = $('encounter');
     id = 'peter';
-    constructor(world, save, onOpen, onClose) {
+    constructor(world, save, onOpen, onClose, onRecruit = () => { }) {
         this.world = world;
         this.save = save;
         this.onOpen = onOpen;
         this.onClose = onClose;
+        this.onRecruit = onRecruit;
         $('encounterLeave').onclick = () => this.close(true);
         this.dialog.addEventListener('cancel', e => { e.preventDefault(); this.close(false); });
     }
     get isOpen() { return this.dialog.open; }
     open(id) { if (this.isOpen)
         return; this.id = id; this.onOpen(); this.render(); this.dialog.showModal(); $('encounterName').focus(); }
-    close(capture) { this.dialog.close(); this.onClose(capture); }
+    close(capture) { if (!this.isOpen)
+        return; this.dialog.close(); this.onClose(capture); }
     render() {
         const w = this.world(), person = witnesses.find(p => p.id === this.id);
         $('encounterName').textContent = person.name;
@@ -30,6 +33,7 @@ export class EncounterUI {
         const add = (label, replace, disabled = false) => { const b = document.createElement('button'); b.textContent = label; b.disabled = disabled; b.onclick = () => { if (recruit(w, this.id, replace)) {
             this.save();
             this.close(true);
+            this.onRecruit(this.id);
         }
         else
             this.render(); }; choices.append(b); };

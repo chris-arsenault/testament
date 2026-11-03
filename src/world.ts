@@ -1,5 +1,6 @@
+import {witnessBlocksPlayer} from './actor-motion.js';
 import {attend,interruptAttention,type AttentionKind} from './attention.js';
-import {gazeLanding,obstructed,stepSupport,support,groundAt,settleWitnessBody,type Point} from './space.js';
+import {gazeLanding,obstructed,stepSupport,support,groundAt,settleWitnessBody,actorPlacement,type Point} from './space.js';
 import {witnesses,whispers,type Witness} from './content.js';
 import {evolve} from './phenomena.js';
 import {tickWitnesses,manifestation,redirectThreshold,witnessStride,witnessCurrent,catCopies,type Manifestation} from './witnesses.js';
@@ -23,11 +24,11 @@ export function separate(w:World,index:number,target?:Point){const id=w.party[in
  if(w.left.includes(id)){const spot=w.waitSpots[id];if(spot?.enthroned&&spot.alone<THRONE_SOLITUDE){if(w.time-spot.refusalAt>3){emit(w,'throne-refusal','I have only just arrived.');spot.refusalAt=w.time;}return false;}
   w.left=w.left.filter(x=>x!==id);delete w.waiting[id];delete w.waitSpots[id];emit(w,'rejoin',witnesses.find(x=>x.id===id)!.line);
  }else{const home=homes[id];let place:Place=home.place,point={x:home.x,z:home.z,y:support(home.place,home.x,home.z)};
-  if(w.place==='crypt'){const occupied=Object.values(w.waitSpots).filter(s=>s?.place==='crypt'&&s.enthroned).length;point={x:[0,-.85,.85][occupied%3],y:1.4,z:-8.8};place='crypt';}
+  if(w.place==='crypt'){const occupied=Object.values(w.waitSpots).filter(s=>s?.place==='crypt'&&s.enthroned).map(s=>s!.x);point={x:[0,-.85,.85].find(x=>occupied.every(p=>Math.abs(p-x)>.2))??0,y:1.4,z:-8.8};place='crypt';}
   w.left.push(id);w.waiting[id]=place;w.waitSpots[id]={...point,place,enthroned:w.place==='crypt',alone:0,refusalAt:-10};w.absence++;emit(w,'absence',w.place==='crypt'?'One set of footsteps stays behind.':'One set of footsteps remembers its way home.');
  }w.letter=(w.letter+1)%12;return true;
 }
-export function updateWaiting(w:World,dt:number){const occupants=Object.values(w.waitSpots).filter(s=>s?.place==='crypt').length;for(const spot of Object.values(w.waitSpots)){if(!spot?.enthroned)continue;if(w.place==='crypt'){if(spot.alone<THRONE_SOLITUDE)spot.alone=0;continue;}const before=spot.alone;spot.alone+=dt/Math.max(1,occupants);if(before<THRONE_SOLITUDE&&spot.alone>=THRONE_SOLITUDE)emit(w,'throne-weariness','The room is larger without you.');}}
+export function updateWaiting(w:World,dt:number){const occupants=Object.values(w.waitSpots).filter(s=>s?.place==='crypt'&&s.enthroned).length;for(const spot of Object.values(w.waitSpots)){if(!spot?.enthroned)continue;if(w.place==='crypt'){if(spot.alone<THRONE_SOLITUDE)spot.alone=0;continue;}const before=spot.alone;spot.alone+=dt/Math.max(1,occupants);if(before<THRONE_SOLITUDE&&spot.alone>=THRONE_SOLITUDE)emit(w,'throne-weariness','The room is larger without you.');}}
 export function touchAngel(w:World){if(w.place!=='garden'||!!manifestation(w,'john')||w.angel<.25||w.angelCooldown>0||Math.hypot(w.x,w.z+8)>4)return false;w.underworld=9;w.buried=true;w.angelCooldown=14;w.memory++;w.reality=2;w.roots=true;emit(w,'chthonic','');return true;}
 export function random(w:World){w.seed=(Math.imul(w.seed,1664525)+1013904223)>>>0;return w.seed/4294967296;}
 export type Observation={moving:boolean;target:AttentionKind;targetId?:string;focus?:boolean};
@@ -49,7 +50,7 @@ export function tick(w:World,dt:number,o:Observation){
  }
  if(w.turns>=2&&w.absence>0){w.roots=true;once(w,'garden',whispers.garden);}
  const current=witnessCurrent(w,dt);if(current)walk(w,0,current,true);
- if(w.gazeFired&&!w.gazeApplied&&w.gazeId.includes(':cat-copy-')&&manifestation(w,'andrew')){const copies=catCopies(w),i=Number(w.gazeId.split('-').at(-1)),point=copies[(i+3)%copies.length];if(point){w.x=point.x;w.z=point.z;w.y=groundAt(w,w.x,w.z);w.vy=0;w.gazeApplied=true;emit(w,'cat-link','');}}
+ if(w.gazeFired&&!w.gazeApplied&&w.gazeId.includes(':cat-copy-')&&manifestation(w,'andrew')){const copies=catCopies(w),i=Number(w.gazeId.split('-').at(-1)),point=copies[(i+3)%copies.length];if(point){const landing=actorPlacement(w,point.x,point.z,Infinity,.3,.95);w.x=landing.x;w.z=landing.z;w.y=landing.y;w.vy=0;w.gazeApplied=true;emit(w,'cat-link','');}}
  evolve(w);
 }
 export function destination(w:World,door:'front'|'left'|'right'|'low'):Place{return redirectThreshold(w,door,d=>baseDestination(w,d));}
@@ -74,16 +75,22 @@ export function cross(w:World,door:'front'|'left'|'right'|'low'){
  if(from==='stair'&&door==='front'){w.turns++;w.memory++;if(!w.anchored)w.reality=w.turns%3;emit(w,'ascent',whispers.ascent[(w.turns-1)%3]);}
  else if(from==='stair'&&door==='left'){w.memory=Math.max(0,w.memory-1);emit(w,'descent',whispers.descent);}
  else {w.returns++;if(w.returns>1)emit(w,'return',whispers.return);}
- w.place=to;const arrival=judas?roomPoint(to,judas.x,judas.z+2):rooms[to].spawn;w.x=arrival.x;w.z=arrival.z;w.y=groundAt(w,w.x,w.z,judas?judas.y+.32:Infinity);w.vy=0;w.yaw=judas?Math.PI:0;if(judas)w.manifestations.judas!.remaining=0;w.still=0;interruptAttention(w);w.cooldown=1.3;w.letter=(w.letter+1+w.left.length)%12;return true;
+ w.place=to;const arrival=judas?roomPoint(to,judas.x,judas.z+2):rooms[to].spawn;w.x=arrival.x;w.z=arrival.z;w.y=groundAt(w,w.x,w.z,judas?judas.y+.34:Infinity);w.vy=0;w.yaw=judas?Math.PI:0;if(judas)w.manifestations.judas!.remaining=0;w.still=0;interruptAttention(w);w.cooldown=1.3;w.letter=(w.letter+1+w.left.length)%12;return true;
 }
 export function walk(w:World,dx:number,dz:number,carried=false){
  const stride=carried?1:witnessStride(w);dx*=stride;dz*=stride;
- const oldX=w.x,oldZ=w.z;let nx=w.x+dx,nz=w.z+dz;
- if(insideRoom(w.place,nx,w.z,.18)&&!obstructed(w,nx,w.z))w.x=nx;if(insideRoom(w.place,w.x,nz,.18)&&!obstructed(w,w.x,nz))w.z=nz;
- const height=groundAt(w,w.x,w.z,w.y+.32);if(height>w.y&&w.vy<=0){w.y=height;w.vy=0;}
- w.distance+=Math.hypot(w.x-oldX,w.z-oldZ);
- const portal=nearPortal(w.place,w.x,w.z);if(portal&&(w.place!=='stair'||portal!=='front'||w.y>=7.8))cross(w,portal);
- else if(w.place==='nave'&&w.passage&&w.z<-9&&w.z>-13&&w.x>9)cross(w,'low');
+ if(!Number.isFinite(dx)||!Number.isFinite(dz))return;
+ const steps=Math.max(1,Math.min(512,Math.ceil(Math.hypot(dx,dz)/.12)));dx/=steps;dz/=steps;
+ for(let i=0;i<steps;i++){
+  const oldX=w.x,oldZ=w.z,nx=w.x+dx,nz=w.z+dz;
+  if(insideRoom(w.place,nx,w.z,.18)&&!obstructed(w,nx,w.z)&&!witnessBlocksPlayer(w,nx,w.z))w.x=nx;
+  if(insideRoom(w.place,w.x,nz,.18)&&!obstructed(w,w.x,nz)&&!witnessBlocksPlayer(w,w.x,nz))w.z=nz;
+  const height=groundAt(w,w.x,w.z,w.y+.34);if(height>w.y&&w.vy<=0){w.y=height;w.vy=0;}
+  w.distance+=Math.hypot(w.x-oldX,w.z-oldZ);
+  const portal=nearPortal(w.place,w.x,w.z);if(portal&&(w.place!=='stair'||portal!=='front'||w.y>=7.8)){if(cross(w,portal))return;}
+  else if(w.place==='nave'&&w.passage&&w.z<-9&&w.z>-13&&w.x>9){if(cross(w,'low'))return;}
+ }
+
 }
 export function restore(raw:string|null):World{
  const base=initial();try{const s=JSON.parse(raw||'null');if(s?.version!==2||!places.includes(s.place))return base;
@@ -93,6 +100,6 @@ export function restore(raw:string|null):World{
  select(base,Array.isArray(s.party)?s.party:initial().party);base.left=Array.isArray(s.left)?[...new Set<Witness>(s.left.filter((x:Witness)=>base.party.includes(x)))]:[];base.seen=Array.isArray(s.seen)?s.seen.filter((x:unknown)=>typeof x==='string').slice(0,200):[];
  base.waiting={};base.waitSpots={};for(const id of base.left){const saved=s.waitSpots?.[id],valid=saved&&['x','y','z','alone'].every(k=>Number.isFinite(saved[k])),enthroned=valid&&saved.place==='crypt'&&!!saved.enthroned,home=homes[id],place=enthroned?'crypt':home.place;
   base.waiting[id]=place;base.waitSpots[id]={place,x:enthroned?Math.max(-.9,Math.min(.9,saved.x)):home.x,z:enthroned?-8.8:home.z,y:enthroned?1.4:support(place,home.x,home.z),enthroned,alone:enthroned?Math.max(0,Math.min(1000,saved.alone)):0,refusalAt:-10};}
- base.y=support(base.place,base.x,base.z,Number.isFinite(s.y)?Math.max(0,Math.min(8.1,s.y))+.05:Infinity);base.vy=0;interruptAttention(base);base.underworld=0;base.angelInside=false;base.angelCooldown=0;base.cooldown=1;settleWitnessBody(base,true);return base;
+ base.y=groundAt(base,base.x,base.z,Number.isFinite(s.y)?Math.max(0,Math.min(8.1,s.y))+.05:Infinity);base.vy=0;interruptAttention(base);base.underworld=0;base.angelInside=false;base.angelCooldown=0;base.cooldown=1;settleWitnessBody(base,true);return base;
  }catch{return base;}
 }

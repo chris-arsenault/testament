@@ -1,5 +1,6 @@
+import { witnessBlocksPlayer } from './actor-motion.js';
 import { attend, interruptAttention } from './attention.js';
-import { obstructed, stepSupport, support, groundAt, settleWitnessBody } from './space.js';
+import { obstructed, stepSupport, support, groundAt, settleWitnessBody, actorPlacement } from './space.js';
 import { witnesses, whispers } from './content.js';
 import { evolve } from './phenomena.js';
 import { tickWitnesses, manifestation, redirectThreshold, witnessStride, witnessCurrent, catCopies } from './witnesses.js';
@@ -65,8 +66,8 @@ export function separate(w, index, target) {
         const home = homes[id];
         let place = home.place, point = { x: home.x, z: home.z, y: support(home.place, home.x, home.z) };
         if (w.place === 'crypt') {
-            const occupied = Object.values(w.waitSpots).filter(s => s?.place === 'crypt' && s.enthroned).length;
-            point = { x: [0, -.85, .85][occupied % 3], y: 1.4, z: -8.8 };
+            const occupied = Object.values(w.waitSpots).filter(s => s?.place === 'crypt' && s.enthroned).map(s => s.x);
+            point = { x: [0, -.85, .85].find(x => occupied.every(p => Math.abs(p - x) > .2)) ?? 0, y: 1.4, z: -8.8 };
             place = 'crypt';
         }
         w.left.push(id);
@@ -78,7 +79,7 @@ export function separate(w, index, target) {
     w.letter = (w.letter + 1) % 12;
     return true;
 }
-export function updateWaiting(w, dt) { const occupants = Object.values(w.waitSpots).filter(s => s?.place === 'crypt').length; for (const spot of Object.values(w.waitSpots)) {
+export function updateWaiting(w, dt) { const occupants = Object.values(w.waitSpots).filter(s => s?.place === 'crypt' && s.enthroned).length; for (const spot of Object.values(w.waitSpots)) {
     if (!spot?.enthroned)
         continue;
     if (w.place === 'crypt') {
@@ -163,9 +164,10 @@ export function tick(w, dt, o) {
     if (w.gazeFired && !w.gazeApplied && w.gazeId.includes(':cat-copy-') && manifestation(w, 'andrew')) {
         const copies = catCopies(w), i = Number(w.gazeId.split('-').at(-1)), point = copies[(i + 3) % copies.length];
         if (point) {
-            w.x = point.x;
-            w.z = point.z;
-            w.y = groundAt(w, w.x, w.z);
+            const landing = actorPlacement(w, point.x, point.z, Infinity, .3, .95);
+            w.x = landing.x;
+            w.z = landing.z;
+            w.y = landing.y;
             w.vy = 0;
             w.gazeApplied = true;
             emit(w, 'cat-link', '');
@@ -227,7 +229,7 @@ export function cross(w, door) {
     const arrival = judas ? roomPoint(to, judas.x, judas.z + 2) : rooms[to].spawn;
     w.x = arrival.x;
     w.z = arrival.z;
-    w.y = groundAt(w, w.x, w.z, judas ? judas.y + .32 : Infinity);
+    w.y = groundAt(w, w.x, w.z, judas ? judas.y + .34 : Infinity);
     w.vy = 0;
     w.yaw = judas ? Math.PI : 0;
     if (judas)
@@ -242,23 +244,33 @@ export function walk(w, dx, dz, carried = false) {
     const stride = carried ? 1 : witnessStride(w);
     dx *= stride;
     dz *= stride;
-    const oldX = w.x, oldZ = w.z;
-    let nx = w.x + dx, nz = w.z + dz;
-    if (insideRoom(w.place, nx, w.z, .18) && !obstructed(w, nx, w.z))
-        w.x = nx;
-    if (insideRoom(w.place, w.x, nz, .18) && !obstructed(w, w.x, nz))
-        w.z = nz;
-    const height = groundAt(w, w.x, w.z, w.y + .32);
-    if (height > w.y && w.vy <= 0) {
-        w.y = height;
-        w.vy = 0;
+    if (!Number.isFinite(dx) || !Number.isFinite(dz))
+        return;
+    const steps = Math.max(1, Math.min(512, Math.ceil(Math.hypot(dx, dz) / .12)));
+    dx /= steps;
+    dz /= steps;
+    for (let i = 0; i < steps; i++) {
+        const oldX = w.x, oldZ = w.z, nx = w.x + dx, nz = w.z + dz;
+        if (insideRoom(w.place, nx, w.z, .18) && !obstructed(w, nx, w.z) && !witnessBlocksPlayer(w, nx, w.z))
+            w.x = nx;
+        if (insideRoom(w.place, w.x, nz, .18) && !obstructed(w, w.x, nz) && !witnessBlocksPlayer(w, w.x, nz))
+            w.z = nz;
+        const height = groundAt(w, w.x, w.z, w.y + .34);
+        if (height > w.y && w.vy <= 0) {
+            w.y = height;
+            w.vy = 0;
+        }
+        w.distance += Math.hypot(w.x - oldX, w.z - oldZ);
+        const portal = nearPortal(w.place, w.x, w.z);
+        if (portal && (w.place !== 'stair' || portal !== 'front' || w.y >= 7.8)) {
+            if (cross(w, portal))
+                return;
+        }
+        else if (w.place === 'nave' && w.passage && w.z < -9 && w.z > -13 && w.x > 9) {
+            if (cross(w, 'low'))
+                return;
+        }
     }
-    w.distance += Math.hypot(w.x - oldX, w.z - oldZ);
-    const portal = nearPortal(w.place, w.x, w.z);
-    if (portal && (w.place !== 'stair' || portal !== 'front' || w.y >= 7.8))
-        cross(w, portal);
-    else if (w.place === 'nave' && w.passage && w.z < -9 && w.z > -13 && w.x > 9)
-        cross(w, 'low');
 }
 export function restore(raw) {
     const base = initial();
@@ -290,7 +302,7 @@ export function restore(raw) {
             base.waiting[id] = place;
             base.waitSpots[id] = { place, x: enthroned ? Math.max(-.9, Math.min(.9, saved.x)) : home.x, z: enthroned ? -8.8 : home.z, y: enthroned ? 1.4 : support(place, home.x, home.z), enthroned, alone: enthroned ? Math.max(0, Math.min(1000, saved.alone)) : 0, refusalAt: -10 };
         }
-        base.y = support(base.place, base.x, base.z, Number.isFinite(s.y) ? Math.max(0, Math.min(8.1, s.y)) + .05 : Infinity);
+        base.y = groundAt(base, base.x, base.z, Number.isFinite(s.y) ? Math.max(0, Math.min(8.1, s.y)) + .05 : Infinity);
         base.vy = 0;
         interruptAttention(base);
         base.underworld = 0;

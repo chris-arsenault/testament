@@ -1,3 +1,4 @@
+import {formationPoint,newActor,advanceActor,turnToward,type ActorMotion} from './actor-motion.js';
 import {WitnessVisuals} from './witness-visuals.js';
 import {columnModel,portalModel,roseModel,windowModel,throneModel,tableModel,catModel,discipleModel,angelModel,gardenModel} from './models.js';
 import {batch,box as carvedBox,archBand,tube,lathe} from './modeling.js';
@@ -6,12 +7,13 @@ import {rooms,homes,floorHeight,roomPoint,columnHeight} from './rooms.js';
 import {RoomScenery,onTerrain} from './room-scenery.js';
 import {manifestation,witnessVisual,witnessBodyHeight,catCopies} from './witnesses.js';
 import {returningRoots} from './roots.js';
-import {stairs,support,groundAt,gazeLanding,type Point} from './space.js';
+import {stairs,support,groundAt,gazeLanding,actorPlacement,occludesSegment,type Point} from './space.js';
 import type {AttentionKind} from './attention.js';
 import {Relics} from './relics.js';
 import * as T from '../three.module.js';
 import {present,throneVisible,type World} from './world.js';
 export class Cathedral {
+ followHeading=0;lastPlayer={x:0,z:12};catMotion:ActorMotion|null=null;
  figures:Record<string,any>={};residents:Record<string,any>={};centralEye:any;roomScenery!:RoomScenery;tableGroup:any;relicRoot:any;gardenRoots:any;
  effects:WitnessVisuals;columnMats:any[]=[];copies:any[]=[];pupils:any;burial:any;scar:any;table:any; relics:Relics; scene:any; camera:any; renderer:any; root:any; cat:any; angel:any; eyes:any; wings:any; water:any; bridge:any; screen:any; roots:any; ceiling:any; throne:any; low:any; companions:any[]=[];letter:any;light:any; rose:any;dust:any; clock=0;lastPlace='';materials:any[]=[];
  constructor(canvas:HTMLCanvasElement){
@@ -31,7 +33,7 @@ export class Cathedral {
   this.roomScenery=new RoomScenery(this.root,this.columnMats);const door=portalModel(stone,dark,gold);
   const particles=new Float32Array(360*3);for(let i=0;i<360;i++){particles[i*3]=Math.sin(i*13.7)*12;particles[i*3+1]=(i%97)/6;particles[i*3+2]=Math.cos(i*3.3)*17;}const pg=new T.BufferGeometry();pg.setAttribute('position',new T.BufferAttribute(particles,3));this.dust=new T.Points(pg,new T.PointsMaterial({color:0xe2d4ae,size:.035,transparent:true,opacity:.6}));this.root.add(this.dust);
   this.low=new T.Group();this.low.position.set(10.5,0,-11);this.root.add(this.low);const smallDoor=door.clone(true);smallDoor.scale.set(.35,.18,.7);this.low.add(smallDoor);
-  this.water=this.box(0,.08,-2,8,.12,8,new T.MeshStandardMaterial({color:'#507f89',metalness:.85,roughness:.15,transparent:true,opacity:.85}));this.bridge=new T.Group();this.root.add(this.bridge);for(let z=-6;z<=2;z++)this.box(0,.2,z,2,.25,.8,white,this.bridge);
+  this.water=this.box(0,.08,-2,8,.12,8,new T.MeshStandardMaterial({color:'#507f89',metalness:.85,roughness:.15,transparent:true,opacity:.85}));this.bridge=new T.Group();this.root.add(this.bridge);for(let z=-6;z<=2;z++)this.box(0,.2,z,2,.25,1.01,white,this.bridge);
   this.roots=returningRoots();this.root.add(this.roots);this.gardenRoots=returningRoots();onTerrain(this.gardenRoots);this.root.add(this.gardenRoots);
   this.burial=new T.Group();this.root.add(this.burial);const earth=this.mat('#332c29');this.box(0,-7.25,0,28,.5,36,earth,this.burial);for(const x of [-7,7])for(const z of [-10,0,10]){this.mesh(new T.CylinderGeometry(.95,.7,7,10),earth,x,-3.5,z,this.burial);this.box(x,-6.8,z,2.2,.4,2.2,gold,this.burial);}for(const z of [-10,0,10])this.mesh(new T.TorusGeometry(7,.25,8,48,Math.PI),earth,0,-7,z,this.burial);const burialLight=new T.PointLight(0x9f7352,50,28);burialLight.position.set(0,-4,-5);this.burial.add(burialLight);for(const z of [-13,-17]){for(const x of [-3.6,3.6])this.mesh(new T.CylinderGeometry(.48,.72,5.7,10),earth,x,-4.15,z,this.burial);this.mesh(new T.TorusGeometry(3.6,.18,8,48,Math.PI),earth,0,-5.2,z,this.burial);}this.box(0,-3.5,-18,14,7,.5,earth,this.burial);const sepulchralLight=new T.PointLight(0xc68b62,55,20);sepulchralLight.position.set(0,-3.4,-12);this.burial.add(sepulchralLight);for(const x of [-2.7,0,2.7]){this.box(x,-4.5,-17.72,1.2,3,.1,this.mat('#0b0908'),this.burial);this.ring(.5,.035,gold,x,-2.8,-17.6,this.burial);}
   this.scar=this.ring(2.5,.045,this.mat('#4f382e',.7),0,.045,-8);this.scar.rotation.x=-Math.PI/2;
@@ -47,24 +49,26 @@ export class Cathedral {
  gazeDirection(w:World):Point{this.camera.rotation.set(w.pitch,w.yaw,0);const d=new T.Vector3();this.camera.getWorldDirection(d);return {x:d.x,y:d.y,z:d.z};}
  waitTarget(w:World){return gazeLanding(w,this.gazeDirection(w),Math.max(.85,this.camera.position.y-w.y));}
  interaction(w:World,point?:{x:number;y:number}):{kind:'witness';id:Witness}|{kind:'puzzle'|'angel'}|null{
-  if(w.underworld>0)return null;const ray=new T.Raycaster();ray.setFromCamera(new T.Vector2(point?.x||0,point?.y||0),this.camera);const candidates:{kind:'witness'|'puzzle'|'angel';id?:Witness;object:any;range:number}[]=[];
+  if(w.underworld>0)return null;this.camera.position.set(w.x,w.y+(manifestation(w,'alphaeus')?witnessBodyHeight(w):w.place==='nave'&&w.passage&&w.x>8&&w.z<-8?.85:1.7),w.z);this.camera.rotation.set(w.pitch,w.yaw,0);this.camera.updateMatrixWorld(true);const ray=new T.Raycaster();ray.setFromCamera(new T.Vector2(point?.x||0,point?.y||0),this.camera);const candidates:{kind:'witness'|'puzzle'|'angel';id?:Witness;object:any;range:number}[]=[];
   for(const {id} of witnesses){const index=w.party.indexOf(id),g=index>=0?this.companions[index]:this.residents[id];if(g?.visible)candidates.push({kind:'witness',id,object:g,range:4.5});}
-  candidates.push({kind:'puzzle',object:this.tableGroup,range:4.8});if(this.angel.visible&&Math.hypot(w.x,w.z+8)<4)candidates.push({kind:'angel',object:this.angel,range:4});
-  let chosen:null|typeof candidates[number]=null,best=Infinity;for(const c of candidates){if(c.object.position.distanceTo(this.camera.position)>c.range+2)continue;const hit=ray.intersectObject(c.object,true).find((h:any)=>!h.object.material.transparent);if(hit&&hit.distance<c.range&&hit.distance<best){let blocked=false;for(let t=.2;t<hit.distance;t+=.25){const p=ray.ray.at(t,new T.Vector3());if(p.y<floorHeight(w.place,p.x,p.z))blocked=true;for(const column of rooms[w.place].columns)if(p.y<columnHeight(w.place)&&Math.hypot(p.x-column.x,p.z-column.z)<.7&&!witnessVisual(w,'bartholomew'))blocked=true;if(w.place==='nave'&&!w.skin&&!w.stable&&p.y<4&&Math.abs(p.x)<3&&Math.abs(p.z+2)<.12)blocked=true;}if(!blocked){chosen=c;best=hit.distance;}}}
+  candidates.push({kind:'puzzle',object:this.tableGroup,range:4.8});if(this.angel.visible&&w.angel>=.25&&w.angelCooldown===0&&!manifestation(w,'john')&&Math.hypot(w.x,w.z+8)<4)candidates.push({kind:'angel',object:this.angel,range:4});
+  let chosen:null|typeof candidates[number]=null,best=Infinity;for(const c of candidates){if(c.object.position.distanceTo(this.camera.position)>c.range+2)continue;const hit=ray.intersectObject(c.object,true).find((h:any)=>!h.object.material.transparent);if(hit&&hit.distance<c.range&&hit.distance<best){const blocked=occludesSegment(w,this.camera.position,hit.point,c.kind==='puzzle'?'table':undefined);if(!blocked){chosen=c;best=hit.distance;}}}
   return chosen?.kind==='witness'?{kind:'witness',id:chosen.id!}:chosen?{kind:chosen.kind}:null;
  }
  target(w:World):{target:AttentionKind;targetId:string}{
   const none={target:'none' as const,targetId:''};if(w.underworld>0)return none;const d=this.gazeDirection(w),dir=new T.Vector3(d.x,d.y,d.z),origin=new T.Vector3(w.x,w.y+(manifestation(w,'alphaeus')?.68:w.place==='nave'&&w.passage&&w.x>8&&w.z<-8?.85:1.7),w.z);
   const targets:[AttentionKind,string,any,number][]=[['cat','cat',this.cat.position.clone().add(new T.Vector3(0,.77,-.12)),6],['angel','angel',this.angel.position,20],['stone','stone',new T.Vector3(0,w.place==='crypt'?2.5:2,w.place==='crypt'?-9:-2),12],...Object.entries(rooms[w.place].doors).map(([id,p])=>['threshold',id,new T.Vector3(p.x,w.place==='stair'&&id==='front'?11:3,p.z),24] as [AttentionKind,string,any,number])];
-  if(witnessVisual(w,'andrew'))catCopies(w).forEach((p,i)=>targets.push(['cat','cat-copy-'+i,new T.Vector3(p.x,.72,p.z),18]));
+  if(witnessVisual(w,'andrew'))this.copies.forEach((copy,i)=>targets.push(['cat','cat-copy-'+i,copy.position.clone().add(new T.Vector3(0,.72,0)),18]));
   let chosen=none as {target:AttentionKind;targetId:string},best=.93;
   for(const [kind,id,p,max] of targets){if(kind==='angel'&&(w.place!=='garden'||w.angel<.25))continue;if(kind==='stone'&&(w.place!=='nave'&&w.place!=='crypt'||w.place==='nave'&&(w.stable||w.skin)||w.place==='crypt'&&!throneVisible(w)))continue;if(kind==='cat'&&id==='cat'&&!this.cat.visible)continue;const delta=p.clone().sub(origin),distance=delta.length(),dot=dir.dot(delta.normalize());if(distance>max||dot<best)continue;
-   let blocked=false;for(let t=.4;t<distance-.8;t+=.35){const point=origin.clone().addScaledVector(delta,t);for(const {x:px,z:pz} of rooms[w.place].columns)if(point.y<columnHeight(w.place)&&Math.hypot(point.x-px,point.z-pz)<.7)blocked=true;}if(blocked)continue;best=dot;chosen={target:kind,targetId:w.place+':'+id};
+   const blocked=occludesSegment(w,origin,p);if(blocked)continue;best=dot;chosen={target:kind,targetId:w.place+':'+id};
   }return chosen;
  }
+ actorObstacles(w:World,except?:any):Point[]{return [...Object.entries(this.residents).filter(([id])=>!w.party.includes(id as Witness)&&homes[id as Witness].place===w.place).map(([id])=>{const p=homes[id as Witness];return {x:p.x,y:floorHeight(w.place,p.x,p.z),z:p.z};}),...this.companions.filter(g=>g!==except&&g.visible&&g.userData.motion?.place===w.place).map(g=>({x:g.position.x,y:g.position.y,z:g.position.z}))];}
  draw(w:World,dt:number,reduced:boolean){
   this.relicRoot.visible=w.place==='nave';this.relics.update(w);this.clock+=dt;const t=this.clock;this.roomScenery.show(w,t,reduced);this.root.getObjectByName('bushes').visible=w.place==='garden';const tablePoint=rooms[w.place].table;this.tableGroup.position.set(tablePoint.x,floorHeight(w.place,tablePoint.x,tablePoint.z),tablePoint.z);
 
+  const changedRoom=this.lastPlace!==w.place;const travel=Math.hypot(w.x-this.lastPlayer.x,w.z-this.lastPlayer.z);if(changedRoom)this.followHeading=w.yaw;else if(travel>.006)this.followHeading=turnToward(this.followHeading,Math.atan2(-(w.x-this.lastPlayer.x),-(w.z-this.lastPlayer.z)),Math.min(1,dt*8));this.lastPlayer={x:w.x,z:w.z};
   const height=w.y;const depth=w.underworld>0?6.4*Math.min(1,(9-w.underworld)/1.2,w.underworld/2):0;this.burial.visible=depth>0;this.scar.visible=w.buried&&(w.place==='garden'||w.place==='crypt');const lowHeight=manifestation(w,'alphaeus')?witnessBodyHeight(w):w.place==='nave'&&w.passage&&w.x>8&&w.z<-8?.85:1.7;this.camera.position.set(w.x,lowHeight+height-(reduced&&depth>0?6.4:depth),w.z);this.camera.rotation.set(w.pitch,w.yaw,0);
   this.water.visible=w.place==='water'||w.memory>2;this.water.position.y=w.place==='water'?(witnessVisual(w,'matthew')?12:.08):13+Math.sin(t*.1)*.2;
   this.dust.rotation.y=reduced?0:Math.sin(t*.03)*.15;this.dust.material.opacity=.2+w.attention*.025;
@@ -72,15 +76,24 @@ export class Cathedral {
   this.angel.visible=w.place==='garden'&&w.angel>.12;this.angel.scale.setScalar(Math.max(.01,w.angel));this.angel.position.y=(w.underworld>0?-1:3.7)+(reduced?0:Math.sin(t*.3)*.3);this.angel.rotation.x=w.underworld>0?Math.PI:0;this.eyes.scale.y=this.pupils.scale.y=w.underworld>0?.04:witnessVisual(w,'john')?.08:1;this.eyes.rotation.y=this.pupils.rotation.y=reduced?0:t*.055;this.wings.rotation.z=reduced?0:Math.sin(t*.12)*.12;
   this.centralEye.scale.y=this.eyes.scale.y;
   const color=rooms[w.place].sky;this.scene.background.set(depth>0?'#0a0706':color);this.scene.fog.color.set(depth>0?'#0a0706':color);this.scene.fog.density=depth>0?.048:.019;this.light.color.set(rooms[w.place].light);
-  let cx=5,cz=-5;if(w.catPhase===2){cx=5+Math.min(1,w.catTimer/3)*5;cz=-5-Math.min(1,w.catTimer/3)*6;}else if(w.catPhase===3){cx=10;cz=-11;}if(w.place!=='nave'){cx=w.x+Math.sin(t*.2)*2;cz=w.z-3;}
-  const catPoint=roomPoint(w.place,cx,cz,.8);if(this.lastPlace!==w.place)this.cat.position.set(catPoint.x,floorHeight(w.place,catPoint.x,catPoint.z)+.03,catPoint.z);this.cat.position.lerp(new T.Vector3(catPoint.x,floorHeight(w.place,catPoint.x,catPoint.z)+.03,catPoint.z),Math.min(1,dt*2));this.cat.rotation.y=Math.atan2(cx-this.cat.position.x,cz-this.cat.position.z);this.cat.visible=w.catPhase!==3||w.place!=='nave';
-  this.companions.forEach((g,i)=>{const id=w.party[i],waiting=w.waitSpots[id];g.visible=!!id&&(!w.left.includes(id)||waiting?.place===w.place);if(!g.visible)return;if(g.userData.witness!==id){g.clear();g.add(this.figures[id].clone(true));g.userData.witness=id;}let point:Point;
-   if(waiting){point=waiting;}else{const a=w.yaw+(i-1)*.9,p=roomPoint(w.place,w.x+Math.sin(a)*2,w.z+Math.cos(a)*2,.6);point={x:p.x,z:p.z,y:groundAt(w,p.x,p.z,w.y+.32)};}
-   if(this.lastPlace!==w.place||Math.hypot(g.position.x-point.x,g.position.z-point.z)>16)g.position.set(point.x,point.y,point.z);else{g.position.x+=(point.x-g.position.x)*Math.min(1,dt*3);g.position.z+=(point.z-g.position.z)*Math.min(1,dt*3);const onThrone=waiting?.enthroned&&Math.hypot(g.position.x-point.x,g.position.z-point.z)<1;const floor=onThrone?point.y:groundAt(w,g.position.x,g.position.z,g.position.y+.32);if(floor>=g.position.y){g.position.y=floor;g.userData.vy=0;}else{g.userData.vy=(g.userData.vy||0)-14*dt;g.position.y=Math.max(floor,g.position.y+g.userData.vy*dt);}}
-   g.rotation.y=waiting?.enthroned?Math.PI:waiting?homes[id].yaw:w.yaw;
+  let cx=5,cz=-5;if(w.catPhase===2){cx=5+Math.min(1,w.catTimer/3)*5;cz=-5-Math.min(1,w.catTimer/3)*6;}else if(w.catPhase===3){cx=10;cz=-11;}
+  if(w.place!=='nave'){cx=w.x-Math.sin(this.followHeading)*2.8+Math.cos(this.followHeading)*1.3;cz=w.z-Math.cos(this.followHeading)*2.8-Math.sin(this.followHeading)*1.3;}
+  const catPoint=actorPlacement(w,cx,cz,(this.catMotion?.y??w.y)+.34,.3,.95);
+  if(changedRoom||!this.catMotion)this.catMotion=newActor(w,catPoint.x,catPoint.z,w.yaw,w.y+.34,.3,.95);
+  advanceActor(w,this.catMotion,catPoint,dt,w.catPhase===2?3.5:2.8,.3,.95,this.actorObstacles(w));this.cat.position.set(this.catMotion.x,this.catMotion.y+.03,this.catMotion.z);this.cat.rotation.y=this.catMotion.yaw;this.cat.visible=w.catPhase!==3||w.place!=='nave';
+  this.companions.forEach((g,i)=>{const id=w.party[i],waiting=w.waitSpots[id];g.visible=!!id&&(!w.left.includes(id)||waiting?.place===w.place);if(!g.visible)return;
+   const changedWitness=g.userData.witness!==id,claim=waiting?.enthroned?waiting.x+':throne':waiting?'home':'following';
+   if(changedWitness){g.clear();g.add(this.figures[id].clone(true));g.userData.witness=id;g.userData.motion=null;}
+   const intended=waiting??formationPoint(w,i,this.followHeading),point=waiting?.enthroned?waiting:actorPlacement(w,intended.x,intended.z,(g.userData.motion?.y??w.y)+.34,.38,1.9);
+   if(changedRoom||!g.userData.motion||waiting&&g.userData.claim!==claim){const resident=this.residents[id];const start=changedWitness&&!changedRoom&&resident.visible?resident.position:point;g.userData.motion=waiting?.enthroned?{...waiting,yaw:Math.PI,vy:0}:newActor(w,start.x,start.z,waiting?homes[id].yaw:this.followHeading,w.y+.34);}
+   const motion=g.userData.motion as ActorMotion;
+   if(!waiting?.enthroned){let goal=point;const fromPlayer=Math.hypot(motion.x-w.x,motion.z-w.z);if(fromPlayer<.85){const a=fromPlayer>.05?Math.atan2(motion.x-w.x,motion.z-w.z):this.followHeading+(i-1)*1.8;goal=actorPlacement(w,w.x+Math.sin(a)*1.1,w.z+Math.cos(a)*1.1,motion.y+.34);}
+    advanceActor(w,motion,goal,dt,Math.hypot(motion.x-goal.x,motion.z-goal.z)>5?4.1:2.8,.38,1.9,this.actorObstacles(w,g));if(Math.hypot(motion.x-goal.x,motion.z-goal.z)<.18)motion.yaw=turnToward(motion.yaw,waiting?homes[id].yaw:Math.atan2(-(w.x-motion.x),-(w.z-motion.z)),dt*2);
+   }
+   g.position.set(motion.x,motion.y,motion.z);g.rotation.y=motion.yaw;g.userData.claim=claim;
   });this.lastPlace=w.place;
   for(const {id} of witnesses){const h=homes[id],g=this.residents[id];g.visible=!w.party.includes(id)&&h.place===w.place;g.position.set(h.x,floorHeight(h.place,h.x,h.z),h.z);g.rotation.y=h.yaw;}
-  const copies=catCopies(w);this.copies.forEach((copy,i)=>{copy.visible=!!witnessVisual(w,'andrew');if(copy.visible){copy.position.set(copies[i].x,floorHeight(w.place,copies[i].x,copies[i].z)+.03,copies[i].z);copy.rotation.y=i*.9;}});
+  const copies=catCopies(w);this.copies.forEach((copy,i)=>{copy.visible=!!witnessVisual(w,'andrew');if(copy.visible){const p=actorPlacement(w,copies[i].x,copies[i].z,Infinity,.3,.95);copy.position.set(p.x,p.y+.03,p.z);copy.rotation.y=i*.9;}});
   this.effects.update(w,reduced);
   this.renderer.render(this.scene,this.camera);
  }

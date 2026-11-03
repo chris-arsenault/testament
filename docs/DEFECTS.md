@@ -224,3 +224,7 @@ Version 8 published successfully on November 2, 2026 (America/Phoenix). Source: 
 ## D-005 requirement superseded — resident homes
 
 The November 2, 2026 request for each disciple to return to an assigned home replaces ordinary gaze-directed waiting. Homes, encounter recruitment and protected throne swaps are implemented and verified in SEVEN_ROOMS.md. The earlier behavior remains documented above as release history, not the current acceptance requirement.
+
+## November 3 — Playability review closed
+
+Additional jank was found in pool support, furniture collision, polygon doorway seams, companion formation/pathing/body overlap, reused throne seats, pointer/touch/modal transitions, caption pacing, main-thread music synthesis and puzzle simplicity. The implemented corrections and evidence are recorded in POLISH_PASS.md. Strict compilation and 111 tests pass; browser review covered the integration and phone-width layouts. Physical touch hardware and subjective headphone listening remain unverified.

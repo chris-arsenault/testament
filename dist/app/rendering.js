@@ -1,16 +1,20 @@
+import { formationPoint, newActor, advanceActor, turnToward } from './actor-motion.js';
 import { WitnessVisuals } from './witness-visuals.js';
 import { portalModel, throneModel, tableModel, catModel, discipleModel, angelModel, gardenModel } from './models.js';
 import { batch, box as carvedBox } from './modeling.js';
 import { witnesses } from './content.js';
-import { rooms, homes, floorHeight, roomPoint, columnHeight } from './rooms.js';
+import { rooms, homes, floorHeight } from './rooms.js';
 import { RoomScenery, onTerrain } from './room-scenery.js';
 import { manifestation, witnessVisual, witnessBodyHeight, catCopies } from './witnesses.js';
 import { returningRoots } from './roots.js';
-import { groundAt, gazeLanding } from './space.js';
+import { gazeLanding, actorPlacement, occludesSegment } from './space.js';
 import { Relics } from './relics.js';
 import * as T from '../three.module.js';
 import { throneVisible } from './world.js';
 export class Cathedral {
+    followHeading = 0;
+    lastPlayer = { x: 0, z: 12 };
+    catMotion = null;
     figures = {};
     residents = {};
     centralEye;
@@ -140,7 +144,7 @@ export class Cathedral {
         this.bridge = new T.Group();
         this.root.add(this.bridge);
         for (let z = -6; z <= 2; z++)
-            this.box(0, .2, z, 2, .25, .8, white, this.bridge);
+            this.box(0, .2, z, 2, .25, 1.01, white, this.bridge);
         this.roots = returningRoots();
         this.root.add(this.roots);
         this.gardenRoots = returningRoots();
@@ -227,6 +231,9 @@ export class Cathedral {
     interaction(w, point) {
         if (w.underworld > 0)
             return null;
+        this.camera.position.set(w.x, w.y + (manifestation(w, 'alphaeus') ? witnessBodyHeight(w) : w.place === 'nave' && w.passage && w.x > 8 && w.z < -8 ? .85 : 1.7), w.z);
+        this.camera.rotation.set(w.pitch, w.yaw, 0);
+        this.camera.updateMatrixWorld(true);
         const ray = new T.Raycaster();
         ray.setFromCamera(new T.Vector2(point?.x || 0, point?.y || 0), this.camera);
         const candidates = [];
@@ -236,7 +243,7 @@ export class Cathedral {
                 candidates.push({ kind: 'witness', id, object: g, range: 4.5 });
         }
         candidates.push({ kind: 'puzzle', object: this.tableGroup, range: 4.8 });
-        if (this.angel.visible && Math.hypot(w.x, w.z + 8) < 4)
+        if (this.angel.visible && w.angel >= .25 && w.angelCooldown === 0 && !manifestation(w, 'john') && Math.hypot(w.x, w.z + 8) < 4)
             candidates.push({ kind: 'angel', object: this.angel, range: 4 });
         let chosen = null, best = Infinity;
         for (const c of candidates) {
@@ -244,17 +251,7 @@ export class Cathedral {
                 continue;
             const hit = ray.intersectObject(c.object, true).find((h) => !h.object.material.transparent);
             if (hit && hit.distance < c.range && hit.distance < best) {
-                let blocked = false;
-                for (let t = .2; t < hit.distance; t += .25) {
-                    const p = ray.ray.at(t, new T.Vector3());
-                    if (p.y < floorHeight(w.place, p.x, p.z))
-                        blocked = true;
-                    for (const column of rooms[w.place].columns)
-                        if (p.y < columnHeight(w.place) && Math.hypot(p.x - column.x, p.z - column.z) < .7 && !witnessVisual(w, 'bartholomew'))
-                            blocked = true;
-                    if (w.place === 'nave' && !w.skin && !w.stable && p.y < 4 && Math.abs(p.x) < 3 && Math.abs(p.z + 2) < .12)
-                        blocked = true;
-                }
+                const blocked = occludesSegment(w, this.camera.position, hit.point, c.kind === 'puzzle' ? 'table' : undefined);
                 if (!blocked) {
                     chosen = c;
                     best = hit.distance;
@@ -270,7 +267,7 @@ export class Cathedral {
         const d = this.gazeDirection(w), dir = new T.Vector3(d.x, d.y, d.z), origin = new T.Vector3(w.x, w.y + (manifestation(w, 'alphaeus') ? .68 : w.place === 'nave' && w.passage && w.x > 8 && w.z < -8 ? .85 : 1.7), w.z);
         const targets = [['cat', 'cat', this.cat.position.clone().add(new T.Vector3(0, .77, -.12)), 6], ['angel', 'angel', this.angel.position, 20], ['stone', 'stone', new T.Vector3(0, w.place === 'crypt' ? 2.5 : 2, w.place === 'crypt' ? -9 : -2), 12], ...Object.entries(rooms[w.place].doors).map(([id, p]) => ['threshold', id, new T.Vector3(p.x, w.place === 'stair' && id === 'front' ? 11 : 3, p.z), 24])];
         if (witnessVisual(w, 'andrew'))
-            catCopies(w).forEach((p, i) => targets.push(['cat', 'cat-copy-' + i, new T.Vector3(p.x, .72, p.z), 18]));
+            this.copies.forEach((copy, i) => targets.push(['cat', 'cat-copy-' + i, copy.position.clone().add(new T.Vector3(0, .72, 0)), 18]));
         let chosen = none, best = .93;
         for (const [kind, id, p, max] of targets) {
             if (kind === 'angel' && (w.place !== 'garden' || w.angel < .25))
@@ -282,13 +279,7 @@ export class Cathedral {
             const delta = p.clone().sub(origin), distance = delta.length(), dot = dir.dot(delta.normalize());
             if (distance > max || dot < best)
                 continue;
-            let blocked = false;
-            for (let t = .4; t < distance - .8; t += .35) {
-                const point = origin.clone().addScaledVector(delta, t);
-                for (const { x: px, z: pz } of rooms[w.place].columns)
-                    if (point.y < columnHeight(w.place) && Math.hypot(point.x - px, point.z - pz) < .7)
-                        blocked = true;
-            }
+            const blocked = occludesSegment(w, origin, p);
             if (blocked)
                 continue;
             best = dot;
@@ -296,6 +287,7 @@ export class Cathedral {
         }
         return chosen;
     }
+    actorObstacles(w, except) { return [...Object.entries(this.residents).filter(([id]) => !w.party.includes(id) && homes[id].place === w.place).map(([id]) => { const p = homes[id]; return { x: p.x, y: floorHeight(w.place, p.x, p.z), z: p.z }; }), ...this.companions.filter(g => g !== except && g.visible && g.userData.motion?.place === w.place).map(g => ({ x: g.position.x, y: g.position.y, z: g.position.z }))]; }
     draw(w, dt, reduced) {
         this.relicRoot.visible = w.place === 'nave';
         this.relics.update(w);
@@ -305,6 +297,13 @@ export class Cathedral {
         this.root.getObjectByName('bushes').visible = w.place === 'garden';
         const tablePoint = rooms[w.place].table;
         this.tableGroup.position.set(tablePoint.x, floorHeight(w.place, tablePoint.x, tablePoint.z), tablePoint.z);
+        const changedRoom = this.lastPlace !== w.place;
+        const travel = Math.hypot(w.x - this.lastPlayer.x, w.z - this.lastPlayer.z);
+        if (changedRoom)
+            this.followHeading = w.yaw;
+        else if (travel > .006)
+            this.followHeading = turnToward(this.followHeading, Math.atan2(-(w.x - this.lastPlayer.x), -(w.z - this.lastPlayer.z)), Math.min(1, dt * 8));
+        this.lastPlayer = { x: w.x, z: w.z };
         const height = w.y;
         const depth = w.underworld > 0 ? 6.4 * Math.min(1, (9 - w.underworld) / 1.2, w.underworld / 2) : 0;
         this.burial.visible = depth > 0;
@@ -347,50 +346,49 @@ export class Cathedral {
             cz = -11;
         }
         if (w.place !== 'nave') {
-            cx = w.x + Math.sin(t * .2) * 2;
-            cz = w.z - 3;
+            cx = w.x - Math.sin(this.followHeading) * 2.8 + Math.cos(this.followHeading) * 1.3;
+            cz = w.z - Math.cos(this.followHeading) * 2.8 - Math.sin(this.followHeading) * 1.3;
         }
-        const catPoint = roomPoint(w.place, cx, cz, .8);
-        if (this.lastPlace !== w.place)
-            this.cat.position.set(catPoint.x, floorHeight(w.place, catPoint.x, catPoint.z) + .03, catPoint.z);
-        this.cat.position.lerp(new T.Vector3(catPoint.x, floorHeight(w.place, catPoint.x, catPoint.z) + .03, catPoint.z), Math.min(1, dt * 2));
-        this.cat.rotation.y = Math.atan2(cx - this.cat.position.x, cz - this.cat.position.z);
+        const catPoint = actorPlacement(w, cx, cz, (this.catMotion?.y ?? w.y) + .34, .3, .95);
+        if (changedRoom || !this.catMotion)
+            this.catMotion = newActor(w, catPoint.x, catPoint.z, w.yaw, w.y + .34, .3, .95);
+        advanceActor(w, this.catMotion, catPoint, dt, w.catPhase === 2 ? 3.5 : 2.8, .3, .95, this.actorObstacles(w));
+        this.cat.position.set(this.catMotion.x, this.catMotion.y + .03, this.catMotion.z);
+        this.cat.rotation.y = this.catMotion.yaw;
         this.cat.visible = w.catPhase !== 3 || w.place !== 'nave';
         this.companions.forEach((g, i) => {
             const id = w.party[i], waiting = w.waitSpots[id];
             g.visible = !!id && (!w.left.includes(id) || waiting?.place === w.place);
             if (!g.visible)
                 return;
-            if (g.userData.witness !== id) {
+            const changedWitness = g.userData.witness !== id, claim = waiting?.enthroned ? waiting.x + ':throne' : waiting ? 'home' : 'following';
+            if (changedWitness) {
                 g.clear();
                 g.add(this.figures[id].clone(true));
                 g.userData.witness = id;
+                g.userData.motion = null;
             }
-            let point;
-            if (waiting) {
-                point = waiting;
+            const intended = waiting ?? formationPoint(w, i, this.followHeading), point = waiting?.enthroned ? waiting : actorPlacement(w, intended.x, intended.z, (g.userData.motion?.y ?? w.y) + .34, .38, 1.9);
+            if (changedRoom || !g.userData.motion || waiting && g.userData.claim !== claim) {
+                const resident = this.residents[id];
+                const start = changedWitness && !changedRoom && resident.visible ? resident.position : point;
+                g.userData.motion = waiting?.enthroned ? { ...waiting, yaw: Math.PI, vy: 0 } : newActor(w, start.x, start.z, waiting ? homes[id].yaw : this.followHeading, w.y + .34);
             }
-            else {
-                const a = w.yaw + (i - 1) * .9, p = roomPoint(w.place, w.x + Math.sin(a) * 2, w.z + Math.cos(a) * 2, .6);
-                point = { x: p.x, z: p.z, y: groundAt(w, p.x, p.z, w.y + .32) };
-            }
-            if (this.lastPlace !== w.place || Math.hypot(g.position.x - point.x, g.position.z - point.z) > 16)
-                g.position.set(point.x, point.y, point.z);
-            else {
-                g.position.x += (point.x - g.position.x) * Math.min(1, dt * 3);
-                g.position.z += (point.z - g.position.z) * Math.min(1, dt * 3);
-                const onThrone = waiting?.enthroned && Math.hypot(g.position.x - point.x, g.position.z - point.z) < 1;
-                const floor = onThrone ? point.y : groundAt(w, g.position.x, g.position.z, g.position.y + .32);
-                if (floor >= g.position.y) {
-                    g.position.y = floor;
-                    g.userData.vy = 0;
+            const motion = g.userData.motion;
+            if (!waiting?.enthroned) {
+                let goal = point;
+                const fromPlayer = Math.hypot(motion.x - w.x, motion.z - w.z);
+                if (fromPlayer < .85) {
+                    const a = fromPlayer > .05 ? Math.atan2(motion.x - w.x, motion.z - w.z) : this.followHeading + (i - 1) * 1.8;
+                    goal = actorPlacement(w, w.x + Math.sin(a) * 1.1, w.z + Math.cos(a) * 1.1, motion.y + .34);
                 }
-                else {
-                    g.userData.vy = (g.userData.vy || 0) - 14 * dt;
-                    g.position.y = Math.max(floor, g.position.y + g.userData.vy * dt);
-                }
+                advanceActor(w, motion, goal, dt, Math.hypot(motion.x - goal.x, motion.z - goal.z) > 5 ? 4.1 : 2.8, .38, 1.9, this.actorObstacles(w, g));
+                if (Math.hypot(motion.x - goal.x, motion.z - goal.z) < .18)
+                    motion.yaw = turnToward(motion.yaw, waiting ? homes[id].yaw : Math.atan2(-(w.x - motion.x), -(w.z - motion.z)), dt * 2);
             }
-            g.rotation.y = waiting?.enthroned ? Math.PI : waiting ? homes[id].yaw : w.yaw;
+            g.position.set(motion.x, motion.y, motion.z);
+            g.rotation.y = motion.yaw;
+            g.userData.claim = claim;
         });
         this.lastPlace = w.place;
         for (const { id } of witnesses) {
@@ -401,7 +399,8 @@ export class Cathedral {
         }
         const copies = catCopies(w);
         this.copies.forEach((copy, i) => { copy.visible = !!witnessVisual(w, 'andrew'); if (copy.visible) {
-            copy.position.set(copies[i].x, floorHeight(w.place, copies[i].x, copies[i].z) + .03, copies[i].z);
+            const p = actorPlacement(w, copies[i].x, copies[i].z, Infinity, .3, .95);
+            copy.position.set(p.x, p.y + .03, p.z);
             copy.rotation.y = i * .9;
         } });
         this.effects.update(w, reduced);

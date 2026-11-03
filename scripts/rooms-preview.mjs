@@ -2,13 +2,19 @@ import fs from 'node:fs';
 let code=fs.readFileSync('dist/app/main.js','utf8').replaceAll("from './","from '/app/").replaceAll('testament-cathedral-v2','testament-room-preview-world').replaceAll('testament-volume','testament-room-preview-volume').replace('continueWorld, reduced);',"continueWorld, reduced, 'testament-room-preview-tables');");
 code="import {rooms,homes,floorHeight,places} from '/app/rooms.js';\n"+code;
 code+=`
-const qa=document.createElement('aside');qa.id='qa';qa.innerHTML='<b>LOCAL ROOM REVIEW · NOT PUBLISHED</b><div id="qaRooms"></div><div id="qaPeople"></div><button id="qaThrone">Philip with throne claim</button><button id="qaTable">Approach table</button><button id="qaHide">Hide review</button><pre id="qaReport"></pre>';document.body.append(qa);
+const qa=document.createElement('aside');qa.id='qa';qa.innerHTML='<b>LOCAL ROOM REVIEW · NOT PUBLISHED</b><div id="qaRooms"></div><div id="qaPeople"></div><button id="qaThrone">Philip with throne claim</button><button id="qaTable">Approach table</button><button id="qaLeft">Face left door</button><button id="qaRight">Face right door</button><button id="qaDeck">Bridge approach</button><button id="qaStep">Walk forward one metre</button><button id="qaOrder">Order first companion</button><button id="qaReset">Fresh review</button><button id="qaHide">Hide review</button><pre id="qaReport"></pre>';document.body.append(qa);
 function ready(place){menu.close();encounters.dialog.close();puzzles.dialog.close();w.place=place;Object.assign(w,rooms[place].spawn,{y:0,yaw:0,pitch:.1,vy:0,skin:true,stable:true,cooldown:1.3});w.y=floorHeight(place,w.x,w.z);w.angel=place==='garden'?1:0;w.events=[];roomTime=0;castTime=0;started=true;active=true;$('veil').classList.add('hidden');renderer.draw(w,0,false);}
-for(const place of places){const b=document.createElement('button');b.textContent=place;b.onclick=()=>ready(place);$('qaRooms').append(b);}
+for(const place of places){const b=document.createElement('button');b.textContent=place;b.onclick=()=>{audio.start();applyVolume();ready(place);};$('qaRooms').append(b);}
 function person(id){const h=homes[id];ready(h.place);w.x=h.x;w.z=h.z+3;w.y=floorHeight(w.place,w.x,w.z);w.pitch=-.1;renderer.draw(w,0,false);}
 for(const p of witnesses){const b=document.createElement('button');b.textContent=p.name;b.onclick=()=>person(p.id);$('qaPeople').append(b);}
 $('qaThrone').onclick=()=>{w=initial();w.place='crypt';separate(w,1);person('philip');};
 $('qaTable').onclick=()=>{const p=rooms[w.place].table;w.x=p.x;w.z=p.z+2.5;w.y=floorHeight(w.place,w.x,w.z);w.yaw=0;w.pitch=-.28;renderer.draw(w,0,false);};
+$('qaLeft').onclick=()=>{const p=rooms[w.place].doors.left;w.x=p.x+5;w.z=p.z;w.y=floorHeight(w.place,w.x,w.z);w.yaw=Math.PI/2;w.pitch=.1;};
+$('qaRight').onclick=()=>{const p=rooms[w.place].doors.right;w.x=p.x-5;w.z=p.z;w.y=floorHeight(w.place,w.x,w.z);w.yaw=-Math.PI/2;w.pitch=.1;};
+$('qaDeck').onclick=()=>{ready('water');Object.assign(w,{bridge:true,x:0,z:3,y:0,pitch:-.1});};
+$('qaStep').onclick=()=>walk(w,-Math.sin(w.yaw),-Math.cos(w.yaw));
+$('qaOrder').onclick=()=>command(0);
+$('qaReset').onclick=()=>{w=initial();puzzles.reset();ready('nave');};
 $('qaHide').onclick=()=>qa.style.display='none';
 setInterval(()=>$('qaReport').textContent=JSON.stringify({room:w.place,party:w.party,waiting:w.waitSpots,position:[w.x,w.y,w.z],calls:renderer.renderer.info.render.calls,triangles:renderer.renderer.info.render.triangles,target:renderer.interaction(w)},null,1),500);
 ready('nave');

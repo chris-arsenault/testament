@@ -48,6 +48,23 @@ export function portalModel(stone, dark, gold) {
     box(g, gold, 0, 8.4, .03, .24, .52, .35, .04);
     return batch(g);
 }
+// Fill the wall above and beside the actual arch opening. Without this, deleting
+// a full-height strip of wall for a door leaves a slit of sky above its keystone.
+export function portalSurround(stone, height, verticalScale = 1) {
+    const s = new T.Shape(), path = ogive(2.45, 5.25, 3.05);
+    s.moveTo(-3.3, 0);
+    s.lineTo(-2.45, 0);
+    for (const [x, y] of path)
+        s.lineTo(x, y * verticalScale);
+    s.lineTo(2.45, 0);
+    s.lineTo(3.3, 0);
+    s.lineTo(3.3, height);
+    s.lineTo(-3.3, height);
+    s.closePath();
+    const g = new T.ExtrudeGeometry(s, { depth: .35, bevelEnabled: false, steps: 1 });
+    g.translate(0, 0, -.95);
+    return new T.Mesh(g, stone);
+}
 export function roseModel(stone, gold) {
     const g = new T.Group(), glass = [material('#496f70', .35, .28), material('#a98a58', .4, .35), material('#4f586d', .3, .3)];
     for (const m of glass) {
